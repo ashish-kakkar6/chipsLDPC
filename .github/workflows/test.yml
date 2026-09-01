@@ -14,20 +14,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Cleanup
-        run: sed -i "s/%NAME%/test/g" build.mill
       - name: Cache Scala
         uses: coursier/cache-action@v6
-      - name: Setup Scala
-        uses: coursier/setup-action@v1
+      - name: Setup Java
+        uses: actions/setup-java@v4
         with:
-          jvm: adopt:11
-          apps: sbt
+          distribution: temurin
+          java-version: 17
       - name: Setup Dependencies
         run: |
-          sudo apt-get install verilator
+          sudo apt-get update
+          sudo apt-get install -y verilator
           verilator --version
-      - name: SBT Test
-        run: sbt test
-      - name: mill Test
-        run: ./mill _.test
+      - name: Test
+        run: ./mill chipsLDPC.test
