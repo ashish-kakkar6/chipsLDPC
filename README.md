@@ -107,7 +107,7 @@ The [fixed 30-iteration profile](examples/RotatedSurfaceCode30/README.md) emits
 only SystemVerilog and narrows each final result to four decoder outcomes.
 The [bivariate-bicycle experiment](examples/BivariateBicycle144/README.md)
 reconstructs the pinned Z-check circuit, emits the progressive BP/OSD artifact,
-and records 1000 shots at `p=0.005` by default.
+and records 1000 shots at each `p=0.001,0.002,...,0.009` by default.
 The [BP-filtered-OSD0 example](examples/BpFilteredOsd0/README.md) verifies the
 exact emitted hierarchy against independent BP and GF(2) software models.
 

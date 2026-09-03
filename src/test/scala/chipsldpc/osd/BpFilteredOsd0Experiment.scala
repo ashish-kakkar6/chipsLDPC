@@ -65,13 +65,13 @@ private final class BpFilteredOsd0Artifact(config: BpFilteredOsd0Config) extends
 object BpFilteredOsd0Experiment {
   private def bit(value: Boolean): Int = if (value) 1 else 0
 
-  private def artifactConfig(problem: DecoderProblem, config: BpFilteredOsd0Config) = Seq(
+  private[osd] def artifactConfig(problem: DecoderProblem, config: BpFilteredOsd0Config) = Seq(
     problem.graph.checkCount, problem.n, config.q.magnitudeBits,
     config.q.accumulatorBits, config.threshold,
     config.prefixes.size,
   ) ++ config.prefixes
 
-  private def golden(problem: DecoderProblem, config: BpFilteredOsd0Config): String = {
+  private[osd] def golden(problem: DecoderProblem, config: BpFilteredOsd0Config): String = {
     val expected = BpFilteredOsd0Reference.run(config, problem.prior, problem.syndrome)
     val correction = expected.correction.flatMap { case (index, value) => Seq(index, value) }
     Seq(
@@ -88,19 +88,23 @@ object BpFilteredOsd0Experiment {
     ).map(_.mkString(" ")).mkString("", "\n", "\n")
   }
 
+  private[osd] def decoderConfig(problem: DecoderProblem, prefixes: Seq[Int]) = {
+    val allColumns = (BigInt(1) << (RelayDefaults.q.accumulatorBits - 1)) + 1
+    BpFilteredOsd0Config(
+      problem.nodes, RelayDefaults.q, RelayDefaults.scale,
+      iterations = problem.iterations, threshold = allColumns,
+      prefixes = prefixes,
+      rejectOverflow = false, order = MagnitudeAscending,
+    )
+  }
+
   def main(args: Array[String]): Unit = {
     require(args.length >= 3,
       "usage: BpFilteredOsd0Experiment <problem.json> <output-directory> <prefix> [<prefix> ...]")
     val problem = DecoderProblem.read(Paths.get(args(0)))
     val output = Paths.get(args(1))
     val prefixes = args.drop(2).map(_.toInt).toSeq
-    val allColumns = (BigInt(1) << (RelayDefaults.q.accumulatorBits - 1)) + 1
-    val config = BpFilteredOsd0Config(
-      problem.nodes, RelayDefaults.q, RelayDefaults.scale,
-      iterations = problem.iterations, threshold = allColumns,
-      prefixes = prefixes,
-      rejectOverflow = false, order = MagnitudeAscending,
-    )
+    val config = decoderConfig(problem, prefixes)
     Files.createDirectories(output.resolve("verification"))
     Files.createDirectories(output.resolve("artifact"))
     Files.writeString(output.resolve("verification/golden.txt"), golden(problem, config))

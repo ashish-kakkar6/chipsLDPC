@@ -41,7 +41,7 @@ def plan(source, simulator, output, shard_size, limit, max_p, clock_cycles,
         header = line(stream, "header").split()
         if len(header) != 8:
             raise ValueError("expected the chipsLDPC eight-field benchmark header")
-        logical_count, iterations, qec_cycles, point_count = map(
+        logical_count, _, qec_cycles, point_count = map(
             int, (header[2], header[3], header[4], header[5]))
         logicals = [line(stream, "logical row") for _ in range(logical_count)]
         header[5] = "1"
@@ -79,14 +79,16 @@ def plan(source, simulator, output, shard_size, limit, max_p, clock_cycles,
     command = [str(simulator), "--benchmark", "{input}", "{output}"]
     if simulator_config:
         command.append(str(simulator_config))
+    metrics = {"qec_cycles_per_shot": qec_cycles}
+    if clock_cycles is not None:
+        metrics["decoder_clock_cycles_per_shot"] = clock_cycles
     manifest = {
         "schema": "rtl-shards.v1",
         "source": {"path": str(source), "sha256": digest(source)},
         "artifacts": [{"path": str(path), "sha256": digest(path)} for path in artifacts],
         "command": command,
         "csv": {"index": "shot", "groups": ["p"]},
-        "metrics": {"qec_cycles_per_shot": qec_cycles,
-                    "decoder_clock_cycles_per_shot": clock_cycles or 2 + 2 * iterations},
+        "metrics": metrics,
         "jobs": jobs,
     }
     path = output / "jobs.json"

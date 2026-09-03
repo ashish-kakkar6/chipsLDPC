@@ -35,6 +35,7 @@ class WorkflowTest(unittest.TestCase):
                              "2 3 1 2 1 1 4 7")
             self.assertEqual(len(manifest["artifacts"]), 2)
             self.assertEqual(manifest["command"][-1], str(config.resolve()))
+            self.assertNotIn("decoder_clock_cycles_per_shot", manifest["metrics"])
 
     def test_parallel_restart_and_merge(self):
         with tempfile.TemporaryDirectory() as directory:
