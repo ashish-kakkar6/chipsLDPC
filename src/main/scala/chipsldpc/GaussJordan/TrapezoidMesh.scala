@@ -3,7 +3,12 @@ package chipsldpc.GaussJordan
 import chisel3._
 import chisel3.util.Cat
 
-final case class TrapezoidMeshConfig(n: Int, liftedCols: Int, reduceHopDelay: Int) {
+final case class TrapezoidMeshConfig(
+    n: Int,
+    liftedCols: Int,
+    reduceHopDelay: Int,
+    exposeFullState: Boolean = true,
+) {
   require(n > 0, "n must be positive")
   require(liftedCols > 0, "liftedCols must be positive")
   require(reduceHopDelay > 0, "reduceHopDelay must be positive")
@@ -20,8 +25,9 @@ final class TrapezoidMeshIO(config: TrapezoidMeshConfig) extends Bundle {
   val data_bottom_o    = Output(UInt(config.liftedCols.W))
   val diag_data_out_o  = Output(UInt(config.n.W))
   val diag_reduce_in_o = Output(UInt(config.n.W))
-  val a_regs_flat_o    = Output(UInt((config.n * config.n).W))
-  val b_regs_flat_o    = Output(UInt((config.n * config.liftedCols).W))
+  val diag_state_o     = Output(UInt(config.n.W))
+  val a_regs_flat_o    = Output(UInt((if (config.exposeFullState) config.n * config.n else 1).W))
+  val b_regs_flat_o    = Output(UInt((if (config.exposeFullState) config.n * config.liftedCols else 1).W))
 }
 
 /** Structural binary Gauss-Jordan mesh with the legacy flat SystemVerilog ABI. */
@@ -32,7 +38,9 @@ final class TrapezoidMesh(config: TrapezoidMeshConfig) extends RawModule {
 
   private val dataDown = Wire(Vec(config.n, Vec(config.totalCols, Bool())))
   private val opBus = Wire(Vec(config.n, Vec(config.totalCols, GjOpcode())))
-  private val states = Wire(Vec(config.n, Vec(config.totalCols, Bool())))
+  private val states = if (config.exposeFullState)
+    Some(Wire(Vec(config.n, Vec(config.totalCols, Bool())))) else None
+  private val diagState = Wire(Vec(config.n, Bool()))
   private val reduceIn = Wire(Vec(config.n, Bool()))
   private val reduceOut = Wire(Vec(config.n, Bool()))
 
@@ -40,7 +48,7 @@ final class TrapezoidMesh(config: TrapezoidMeshConfig) extends RawModule {
     if (col < row) {
       dataDown(row)(col) := false.B
       opBus(row)(col) := GjOpcode.Pass
-      states(row)(col) := false.B
+      states.foreach(_(row)(col) := false.B)
     } else if (col == row) {
       val cell = Module(new PeDiag)
       cell.clk := io.clk
@@ -50,7 +58,8 @@ final class TrapezoidMesh(config: TrapezoidMeshConfig) extends RawModule {
       cell.reduce_sig_i := reduceIn(row)
       dataDown(row)(col) := cell.data_o
       opBus(row)(col) := cell.op_o
-      states(row)(col) := cell.state_o
+      states.foreach(_(row)(col) := cell.state_o)
+      diagState(row) := cell.state_o
       reduceOut(row) := cell.reduce_sig_o
     } else {
       val cell = Module(new PeCol)
@@ -61,7 +70,7 @@ final class TrapezoidMesh(config: TrapezoidMeshConfig) extends RawModule {
       cell.op_i := opBus(row)(col - 1)
       dataDown(row)(col) := cell.data_o
       opBus(row)(col) := cell.op_o
-      states(row)(col) := cell.state_o
+      states.foreach(_(row)(col) := cell.state_o)
     }
   }
 
@@ -84,8 +93,10 @@ final class TrapezoidMesh(config: TrapezoidMeshConfig) extends RawModule {
   io.data_bottom_o := pack((0 until config.liftedCols).map(col => dataDown(config.n - 1)(config.n + col)))
   io.diag_data_out_o := pack((0 until config.n).map(row => dataDown(row)(row)))
   io.diag_reduce_in_o := pack(reduceIn.toSeq)
-  io.a_regs_flat_o := pack(for (row <- 0 until config.n; col <- 0 until config.n) yield states(row)(col))
-  io.b_regs_flat_o := pack(
-    for (row <- 0 until config.n; col <- 0 until config.liftedCols) yield states(row)(config.n + col)
-  )
+  io.diag_state_o := pack(diagState.toSeq)
+  io.a_regs_flat_o := states.fold(0.U)(grid =>
+    pack(for (row <- 0 until config.n; col <- 0 until config.n) yield grid(row)(col)))
+  io.b_regs_flat_o := states.fold(0.U)(grid => pack(
+    for (row <- 0 until config.n; col <- 0 until config.liftedCols) yield grid(row)(config.n + col)
+  ))
 }

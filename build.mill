@@ -31,7 +31,8 @@ object `chipsLDPC` extends SbtModule {
   )
   object test extends SbtTests with TestModule.ScalaTest {
     override def mvnDeps = Seq(
-      mvn"org.scalatest::scalatest::3.2.19"
+      mvn"org.scalatest::scalatest::3.2.19",
+      mvn"com.lihaoyi::ujson:3.3.1",
     )
   }
 }

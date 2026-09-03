@@ -77,14 +77,15 @@ final class GaussJordanPESpec extends AnyFreeSpec with ChiselSim {
         dut.clk.step()
 
         val swap = reduce && state
-        val nextState = state || data
+        val nextState = state || (data && !reduce)
         val op =
           if (swap) GjOpcode.Swap
+          else if (reduce) GjOpcode.Pass
           else if (!data) GjOpcode.Pass
           else if (!state) GjOpcode.Lock
           else GjOpcode.Add
         dut.state_o.expect(nextState.B)
-        dut.data_o.expect((swap && data).B)
+        dut.data_o.expect((reduce && data).B)
         dut.op_o.expect(op)
       }
     }

@@ -6,7 +6,7 @@ final case class Quantization(magnitudeBits: Int, accumulatorBits: Int) {
 }
 
 object RelayDefaults {
-  val q = Quantization(4, 5)
+  val q = Quantization(4, 7)
   val scale: CheckScale = RampScale(q.magnitudeBits)
   val priorScale = 2
   val memoryScale = 8

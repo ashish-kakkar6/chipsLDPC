@@ -9,46 +9,69 @@
 \maketitle
 
 \begin{abstract}
-This manuscript records the design and validation of \texttt{chipsLDPC}, a
-small Chisel/CIRCT research generator for field-programmable gate array
-implementations of quantum low-density parity-check decoders.  The current
-artifact implements shared check-node and variable-node primitives for the
-syndrome-based min-sum architecture of Valls et al. and the memory-augmented
-architecture of Maurer et al.  The implementation deliberately separates
-static graph elaboration from runtime message processing, represents edge
-messages using distinct sign and magnitude fields, and provides executable
-tests for ties, zero, fixed-width arithmetic, saturation, and cycle latency.
-An immutable pure Scala graph model validates sparse parity-check adjacency and
-assigns deterministic edge identifiers before hardware elaboration.
-Independent binary Gauss--Jordan processing elements provide a small
-post-processing interoperability example.
-This document describes the implemented milestone; performance and full-code
-decoder results are reserved for future revisions.
+This manuscript records the design, implementation, and validation of
+\texttt{chipsLDPC}, a compact Chisel/CIRCT research generator for fixed-graph
+quantum low-density parity-check decoder hardware.  The current artifact
+contains reusable min-sum check-node and variable-node datapaths, a pure Scala
+Tanner-graph elaborator, a graph-generated static Steane datapath, a
+combinational convergence checker, and an independent binary Gauss--Jordan
+mesh.  The decoder broadcasts one minimum pair per check and carries only
+per-edge sign and selector metadata.  One registered check phase followed by
+one registered variable phase implements each flooding-schedule iteration.
+Numeric width, sign, zero, tie, scaling, saturation, initialization, and
+handshake semantics are explicit.  Verification proceeds from independent
+integer reference functions through leaf and graph-level Chisel simulation to
+a standalone comparison of the exact CIRCT-emitted SystemVerilog artifact with
+deterministic Scala golden records.  A file-driven example performs this
+comparison for a sparse input matrix, quantized priors, syndrome, and fixed
+iteration count.  A Stim front end exercises the same path on rotated surface
+codes of distance three, five, and seven while retaining detector-model priors
+and logical observables.  This document is both a statement of the
+implemented research milestone and a guide to reading and extending its source.
+Timing, resource, power, and complete Relay-controller claims are intentionally
+deferred until an FPGA implementation flow is added.
 \end{abstract}
 
-\section{Research Objective}
-Quantum LDPC decoders must combine algorithmic experimentation with hardware
-structures whose resource usage and timing remain transparent.  The objective
-of \texttt{chipsLDPC} is therefore not to provide a large decoding framework.
-It is to provide a small family of composable generators from which a fixed
-decoder graph can be elaborated, inspected as FIRRTL-dialect MLIR, emitted as
-synthesizable SystemVerilog, simulated with Verilator, and eventually evaluated
-on an FPGA.
+\section{Research Objective and Current Boundary}
+Quantum LDPC decoding research must permit rapid algorithmic changes while
+keeping the generated hardware, arithmetic, and timing boundaries inspectable.
+The purpose of \texttt{chipsLDPC} is therefore a small collection of explicit
+generators rather than a general decoder framework.  A parity-check matrix is
+elaboration-time data.  Chisel constructs a fixed circuit for that graph,
+CIRCT emits inspectable FIRRTL-dialect MLIR and synthesizable SystemVerilog, and
+Verilator checks both generated designs and an exact emitted artifact.
 
-The current milestone asks a narrow question: can the CNU and VNU datapaths in
-Refs.~\cite{valls2021,maurer2025} be represented by one common implementation
-with explicit, testable policy differences?  Controller construction, decoder
-termination, sliding windows, syndrome streaming, and FPGA implementation are
-outside the present scope.
+The implemented decoder milestone contains the following:
+\begin{itemize}
+  \item reusable combinational CNU and VNU kernels;
+  \item Valls-style constant shift-add scaling and Relay-style iteration-ramp
+        scaling as elaboration-time CNU policies;
+  \item a deterministic memory-biased Relay VNU leaf and registered wrapper;
+  \item an elaboration-only Tanner graph and local node-port plan;
+  \item a full static network with one CNU per row, one VNU per column, one
+        fixed connection per nonzero of $H$, and a two-phase local scheduler;
+  \item a residual and convergence output;
+  \item a file-driven exact-RTL experiment with per-iteration golden checking;
+  \item a Stim-derived rotated-surface problem source for distances three,
+        five, and seven; and
+  \item a separate binary Gauss--Jordan component family for future
+        post-processing experiments.
+\end{itemize}
+The static network currently instantiates the base min-sum VNU, with the locked
+Relay-oriented quantization and ramp scaling as defaults.  It does \emph{not}
+yet integrate the memory-biased Relay VNU.  A complete decoder controller,
+automatic early termination, Relay legs and coefficient generation, shot
+streaming or state banking, host interfaces, FPGA implementation, and board
+execution remain outside the implemented boundary.  The three control
+registers in the static network constitute only a local two-phase scheduler,
+not that future decoder controller.
 
 \section{Algorithmic Background}
 Let $H\in\{0,1\}^{m\times n}$ be a parity-check matrix.  Check $i$ is adjacent
 to variables $\mathcal{N}(i)$ and variable $j$ is adjacent to checks
-$\mathcal{M}(j)$.  The incoming variable-to-check message is denoted
-$R_{i,j}$ and the outgoing check-to-variable message is denoted
-$\sigma_{i,j}$.  A syndrome bit $S_i$ modifies the check parity.
-
-For syndrome-based min-sum, the check update is
+$\mathcal{M}(j)$.  The incoming variable-to-check message is $R_{i,j}$, the
+outgoing check-to-variable message is $\sigma_{i,j}$, and $S_i$ is a syndrome
+bit.  The syndrome-based min-sum check update is
 \begin{equation}
  \sigma_{i,j} =
  \left(
@@ -60,18 +83,16 @@ For syndrome-based min-sum, the check update is
  \min_{j'\in\mathcal{N}(i)\setminus j}|R_{i,j'}|.
  \label{eq:cnu}
 \end{equation}
-The corresponding variable update is
-\begin{equation}
- R_{i,j}=\Lambda_j+
+The variable update and marginal are
+\begin{align}
+ R_{i,j} &= \Lambda_j+
  \sum_{i'\in\mathcal{M}(j)\setminus i}\sigma_{i',j},
- \label{eq:vnu}
-\end{equation}
-with marginal
-\begin{equation}
- M_j=\Lambda_j+\sum_{i'\in\mathcal{M}(j)}\sigma_{i',j}.
+ \label{eq:vnu}\\
+ M_j &= \Lambda_j+
+ \sum_{i'\in\mathcal{M}(j)}\sigma_{i',j}.
  \label{eq:marginal}
-\end{equation}
-The hard decision is
+\end{align}
+The hard decision is deliberately strict:
 \begin{equation}
  \operatorname{HD}(M_j)=
  \begin{cases}
@@ -80,353 +101,841 @@ The hard decision is
  \end{cases}
  \label{eq:hard-decision}
 \end{equation}
-This strict-negative convention makes zero a no-error decision and agrees with
-the canonical sign--magnitude representation, in which zero always has sign
-zero.  The decision is taken from the full working-width marginal before
-saturation.
+Thus a zero marginal means no correction.  The implementation takes this
+decision from the unsaturated working-width total.
 
 The memory-augmented VNU replaces the static prior by
 \begin{equation}
- \Lambda_j(t)=(1-\gamma_j)\Lambda_j(0)+\gamma_j M_j(t-1).
+ \Lambda_j(t)=(1-\gamma_j)\Lambda_j(0)+\gamma_jM_j(t-1).
  \label{eq:memory}
 \end{equation}
-Defining $\beta_j=1-\gamma_j$ gives the implemented form
+With $\beta_j=1-\gamma_j$, the implemented exact fixed-point baseline is
 \begin{equation}
  \Lambda_j(t)=\beta_j\Lambda_j(0)+M_j(t-1)-\beta_jM_j(t-1).
  \label{eq:beta}
 \end{equation}
-This form permits one unsigned fixed-point coefficient to multiply two signed
-operands.  Coefficient generation is intentionally external to the VNU.
+Coefficient generation remains external to the leaf module.
 
-\section{Design Principles}
-\subsection{Elaboration and runtime data}
-The parity-check matrix and adjacency lists are Scala values used during
-elaboration.  A future full decoder will construct one CNU per row, one VNU per
-column, and fixed wires per nonzero of $H$.  The matrix is not a runtime port.
-Syndromes, messages, iteration controls, and memory coefficients are runtime
-hardware data.
+Convergence is a separate binary computation.  For hard-decision vector
+$\hat e$, the residual is
+\begin{equation}
+ r=H\hat e\oplus S,
+ \qquad \text{converged}\iff \bigvee_i r_i=0.
+ \label{eq:residual}
+\end{equation}
 
-\subsection{Static Tanner-graph contract}
-For $H\in\{0,1\}^{m\times n}$, the implemented \texttt{TannerGraph} accepts
-$n$ and \texttt{rowOnes}, where \texttt{rowOnes(i)} contains the variable
-indices in $\mathcal{N}(i)$.  Each row is sorted, and global edge identifiers
-are then assigned in increasing check order and increasing variable order.
-Thus a physical message port has one deterministic identity independent of the
-input order within a row.
+\section{Programming Model and Reading Order}
+\subsection{Three distinct representations}
+The code uses Scala, Chisel, and emitted hardware for different purposes.  A
+plain Scala \texttt{Seq}, \texttt{Vector}, case class, loop, or pattern match
+runs once while elaborating a particular circuit.  A Chisel \texttt{Vec},
+\texttt{UInt}, \texttt{SInt}, \texttt{Bool}, \texttt{Mux}, or \texttt{when}
+describes hardware that exists at runtime.  FIRRTL-dialect MLIR and
+SystemVerilog are generated artifacts, not additional hand-maintained decoder
+implementations.  Keeping these levels distinct is the key to reading the
+repository.
 
-The column adjacency \texttt{colOnes}, check-to-edge mapping, and
-variable-to-edge mapping are derived from that single normalized source.  The
-constructor rejects nonpositive dimensions, empty check or variable adjacency,
-duplicates, and indices outside $[0,n)$.  It does not impose a min-sum-specific
-minimum check degree: algorithm constraints belong to the later hardware
-elaborator.  The graph contains no Chisel types and produces no registers,
-ports, memories, or runtime crossbar.
+For example, \texttt{nodes.checks.map} in
+\path{StaticTannerDatapath.scala} is a Scala traversal that creates one module
+per check during elaboration.  It is not a runtime iterator.  Conversely,
+\texttt{io.step.fire} is a hardware condition evaluated on every clock cycle.
+The Scala match over \texttt{CheckScale} selects hardware at elaboration time;
+the Chisel \texttt{MuxLookup} in the ramp policy selects a constant-shift result
+at runtime.
 
-\texttt{TannerNodeGraphs} derives one rooted view per check and per variable.
-Each view retains the global edge identifier, while its vector position defines
-the corresponding local CNU or VNU port.  A check view records the neighboring
-variable for each edge; a variable view records the neighboring check.  The
-views therefore duplicate only immutable Scala metadata and cannot introduce a
-second edge numbering or any runtime routing structure.
+\subsection{Module conventions}
+Combinational tops are \texttt{RawModule}s, so they acquire no accidental
+clock or reset.  Stateful components are \texttt{Module}s and place registers
+at intentional phase or protocol boundaries.  \texttt{RegInit} is used for
+control or externally required reset state; \texttt{RegEnable} and unreset
+\texttt{Reg} are used for wide datapath state whose validity is guaranteed by
+the load/step protocol.  This reset policy avoids manufacturing a large reset
+network for data that is overwritten before use.
 
-The concrete validation example uses one CSS sector of the Steane
-$[[7,1,3]]$ code~\cite{steane1996}.  With zero-based variable indices, the
-chosen Hamming parity-check convention is
+Classes are \texttt{final} unless extension is part of the design.  Immutable
+case classes carry configuration or reference values.  Composition and
+elaboration-time policy objects are preferred to hardware inheritance.  The
+package-restricted graph records prevent callers from constructing inconsistent
+local port maps while still exposing the validated result to decoder code.
+
+\subsection{Recommended source traversal}
+Table~\ref{tab:reading-order} gives the shortest path through the maintained
+implementation.  A reader following it encounters every contract before its
+first important use.
+
+\begin{table*}[t]
+\caption{Source-oriented reading order.}
+\label{tab:reading-order}
+\centering
+\scriptsize
+\begin{tabular}{@{}p{0.035\textwidth}p{0.255\textwidth}p{0.33\textwidth}p{0.31\textwidth}@{}}
+\toprule
+Step & Source & Read for & Then inspect \\
+\midrule
+1 & \path{Config.scala} & Width, degree, scaling, and Relay defaults; all are immutable Scala values. & The \texttt{require} clauses, then the locked \texttt{RelayDefaults}. \\
+2 & \path{graph/TannerGraph.scala} & Canonical sparse $H$, row-major global edges, and derived column adjacency. & \texttt{fromRows}; note which checks happen before hardware elaboration. \\
+3 & \path{graph/TannerNodeGraphs.scala} & Translation from each global edge to local CNU and VNU ports. & \texttt{connections}; distinguish node ID from local port number. \\
+4 & \path{Protocol.scala} & Hardware bundles crossing arithmetic and phase boundaries. & \texttt{CheckResult} versus the wire-view \texttt{CheckMessage}. \\
+5 & \path{Arithmetic.scala} & Canonical sign, conversion, balanced sums, explicit widths, clipping, and scale policies. & Operators that expand or retain width and the elaboration/runtime split in \texttt{scale}. \\
+6 & \path{TwoMin.scala} and \path{CheckNode.scala} & Balanced first/second minimum, shared parity, scaling, and compressed broadcast metadata. & Why equality selects the second minimum and why duplicates remain valid. \\
+7 & \path{VariableNode.scala} & Selection, sign--magnitude conversion, one shared total, total-minus-own messages, and Relay bias. & \texttt{VariableLogic}, then the thin base, Relay, and registered wrappers. \\
+8 & \path{ConvergenceChecker.scala} & Combinational $H\hat e\oplus S$ specialized from the Scala graph. & Native XOR and OR reductions. \\
+9 & \path{StaticTannerDatapath.scala} & Full graph elaboration, load initialization, static edge wiring, CNU/VNU registers, and handshake timing. & The three control registers, then the single \texttt{connections.foreach}. \\
+10 & \path{Iteration.scala} & A smaller legacy $2\times2$ wiring and latency example. & Treat it as a teaching top, not the generic graph implementation. \\
+11 & \path{Generate.scala} & Named top selection and deterministic MLIR/SystemVerilog emission. & The target match and CIRCT options. \\
+12 & \path{GaussJordan/} & Independent one-bit post-processing PEs and their structural mesh. & Opcode/state semantics before mesh composition. \\
+13 & \path{src/test/scala/chipsldpc/} and \path{examples/} & Executable semantics, cycle contracts, and exact emitted-artifact checks. & Read \texttt{Reference}, then \texttt{EndToEnd}, before each corresponding executable. \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\section{Configuration and Static Graph Elaboration}
+\subsection{Validated configuration objects}
+\texttt{Quantization} stores edge magnitude width $w_m$ and accumulator width
+$w_a$, requiring $w_a\geq w_m+1$.  \texttt{CheckConfig} adds check degree and
+a \texttt{CheckScale}; checks require degree at least two.
+\texttt{VariableConfig} accepts positive degree and derives a working width.
+\texttt{RelayFormat} describes an unsigned fixed-point $\beta$ port and
+requires at least two integer-side bits beyond its fractional field.
+
+The locked defaults are
+\begin{equation}
+ (w_m,w_a)=(4,5),\quad
+ \texttt{RampScale}(4),\quad S=2,\quad M=8.
+\end{equation}
+The first pair and ramp policy are used by the default static datapath.  The
+constants $S$ and $M$ are recorded and tested for Relay-oriented experiments;
+they are not an implicit conversion performed inside every hardware module.
+The generated Relay leaf example separately uses
+\texttt{RelayFormat(6,4)}.
+
+\subsection{One canonical graph source}
+The factory \texttt{TannerGraph.fromRows} is the only constructor for the
+static parity-check graph.  Its arguments are \texttt{variableCount} and
+\texttt{rowOnes}.  For $H\in\{0,1\}^{m\times n}$, \texttt{rowOnes(i)} lists
+the variable indices in $\mathcal{N}(i)$.  The
+constructor sorts every row, rejects a nonpositive variable count, an empty
+check set, empty rows, duplicate or out-of-range entries, and any variable with
+no incident check.  It then assigns edge IDs in increasing check order and
+increasing variable order.  Column adjacency, check-edge IDs, and variable-edge
+IDs are derived rather than accepted as redundant inputs.
+
+This object contains no Chisel types.  It adds no ports, memories, registers,
+or runtime router.  Graph validation and transpose construction finish before
+the first hardware module is created.
+
+\texttt{TannerNodeGraphs.from} derives rooted node views without renumbering an
+edge.  A connection record
+\begin{equation}
+ (e,i,p_i,j,p_j)
+\end{equation}
+contains global \texttt{edgeId} $e$, check \texttt{checkId} $i$, local
+\texttt{checkPort} $p_i$, variable \texttt{variableId} $j$, and local
+\texttt{variablePort} $p_j$.  Node IDs select a generated module; port numbers
+select a position inside that module's degree-dependent \texttt{Vec}.  Both are
+needed because the same global edge generally has different local positions at
+its two endpoints.  The constructor asserts that the connection sequence still
+contains exactly the canonical global edge IDs.
+
+\subsection{Steane elaboration example}
+The concrete graph-level example is one CSS sector of the Steane
+$[[7,1,3]]$ code~\cite{steane1996}.  With zero-based variable indices,
 \begin{equation}
  H_{\mathrm{Steane}} =
  \begin{bmatrix}
  0&0&0&1&1&1&1\\
  0&1&1&0&0&1&1\\
  1&0&1&0&1&0&1
- \end{bmatrix},
+ \end{bmatrix}.
 \end{equation}
-so \texttt{rowOnes} is
-$[[3,4,5,6],[1,2,5,6],[0,2,4,6]]$.  The code has identical Hamming-code
-blocks $H_X=H_Z$, so the same Tanner topology applies independently to either
-CSS decoding sector.
+Consequently,
+\begin{equation}
+ \texttt{rowOnes}=
+ [[3,4,5,6],[1,2,5,6],[0,2,4,6]].
+\end{equation}
+The graph has three degree-four checks, seven variables with degrees
+$(1,1,2,1,2,2,3)$, and twelve edges.  Its identical Hamming-code blocks
+$H_X=H_Z$ let the same topology represent either CSS sector independently.
+The exact rooted views and all twelve five-field connection records are locked
+by \path{TannerNodeGraphsSpec.scala}.
 
-\subsection{Composition rather than module inheritance}
-Immutable Scala case classes describe degrees, widths, and policies.  Chisel
-bundles describe interfaces.  Pure generator functions implement small
-combinational structures, and modules provide meaningful hierarchy or state.
-Paper variants are elaboration-time policies around a shared datapath rather
-than subclasses containing duplicated hardware.
-
-\subsection{Inspectability}
-Combinational implementations are \texttt{RawModule}s and therefore introduce
-no implicit clock or reset.  Registered wrappers make the one-cycle CNU and VNU
-phase boundaries explicit.  The generator emits both FIRRTL-dialect MLIR and
-SystemVerilog so arithmetic widths, muxes, comparisons, and registers can be
-inspected before synthesis.
-
-\section{Numeric Contract}
-Table~\ref{tab:contract} is normative for the current implementation.
+\section{Numeric and Interface Contract}
+Table~\ref{tab:numeric-contract} is normative for the current implementation.
 
 \begin{table}[t]
 \caption{Implemented fixed-width semantics.}
-\label{tab:contract}
+\label{tab:numeric-contract}
 \centering
-\begin{tabular}{@{}p{0.30\columnwidth}p{0.64\columnwidth}@{}}
+\small
+\begin{tabular}{@{}p{0.30\columnwidth}p{0.63\columnwidth}@{}}
 \toprule
 Property & Contract \\
 \midrule
-Edge representation & One sign bit and an unsigned magnitude. \\
-Sign convention & Zero is nonnegative; one is negative. \\
-Canonical zero & A zero magnitude always forces sign zero. \\
+Edge representation & Separate sign and unsigned magnitude. \\
+Complete zero & A zero-magnitude \texttt{SignMag} is nonnegative. \\
+CNU metadata & Sign is parity metadata until paired with the selected magnitude. \\
 Minimum tie & Equal values occupy both minimum positions. \\
-Selector & \texttt{useSecond} iff the incoming magnitude equals the first minimum. \\
-Accumulator & Signed two's-complement with explicit guard width. \\
-Decision tie & A zero marginal produces correction zero. \\
-Saturation & Applied at named interfaces, not silently at tree levels. \\
+Selector & Use second iff the incoming magnitude equals the unscaled first minimum. \\
+Decision tie & Marginal zero produces correction zero. \\
+Accumulator & Signed two's-complement with an explicit guard width. \\
+Saturation & Only at named stored or edge interfaces. \\
+Initialization & Static V2C edges start as positive copies of their variable prior. \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The edge magnitude width $w_m$ and stored accumulator width $w_a$ are explicit
-configuration values.  The VNU evaluates its balanced sum at
+The complete edge message \texttt{SignMag} canonicalizes zero through
+\texttt{Arithmetic.canonicalSign}.  The CNU's \texttt{EdgeMeta.sign} is not by
+itself a complete sign--magnitude number: it is exclusive-parity metadata that
+may be one even when a subsequently selected magnitude is zero.  The VNU
+combines the fields and canonicalizes zero during conversion.  This distinction
+preserves a clean split between sign parity and magnitude selection.
+
+The VNU working width is
 \begin{equation}
- w_{\mathrm{work}} = w_a +
- \max\left(1,\left\lceil\log_2(d_v+1)\right\rceil\right),
+ w_{\mathrm{work}}=w_a+
+ \max\left(1,\left\lceil\log_2(d_v+1)\right\rceil\right).
 \end{equation}
-where $d_v$ is the variable degree.  The marginal is saturated into $w_a$,
-while each extrinsic result is saturated into the unsigned $w_m$ magnitude.
-Expanding or truncating arithmetic is selected explicitly in Chisel.
-The locked Relay-oriented default is $(w_m,w_a)=(4,5)$, with four magnitude
-bits, a separate message sign, and five-bit two's-complement stored marginals.
+Every prior and incoming message is padded to this width.  The balanced sum
+uses explicit fixed-width addition; the result is clipped once into the stored
+$w_a$ marginal.  Each total-minus-own result is separately converted and
+clipped into an unsigned $w_m$ magnitude.  In Chisel, padding, signed casts,
+fixed-width arithmetic, and expanding arithmetic are written explicitly, so a
+reader should not infer mathematical unbounded integers from a Scala-looking
+expression.
 
-\section{Check-Node Unit}
-\subsection{Exclusive sign}
-For one check, the implementation first canonicalizes every input sign and
-forms one global XOR with the syndrome.  The sign for edge $j$ is obtained by
-XORing the global parity with the canonical sign of edge $j$.  This shares one
-parity tree across all outputs.  This parity metadata remains independent of
-the broadcast magnitude and is canonicalized after the VNU selects a minimum.
+\subsection{Bundle-level broadcast protocol}
+\texttt{Protocol.scala} makes the compression boundary visible:
+\begin{itemize}
+  \item \texttt{MinPair} carries the shared first and second magnitudes;
+  \item \texttt{EdgeMeta} carries one sign and one \texttt{useSecond} bit;
+  \item \texttt{CheckResult} stores one \texttt{MinPair} and a vector of edge
+        metadata, not one copied pair per edge;
+  \item \texttt{CheckMessage} is the VNU-side wire view of one broadcast pair
+        plus one edge's metadata; and
+  \item \texttt{VariableResult} carries the stored marginal, hard decision,
+        and one outgoing sign--magnitude message per incident edge.
+\end{itemize}
+The static graph therefore registers $2w_m$ broadcast magnitude bits per CNU,
+plus two metadata bits per edge.  It does not register an edge-expanded array
+of duplicated check-to-variable magnitudes.  Physical fanout and placement are
+left to synthesis and implementation tools; the source-level architecture does
+not claim a routing result before those tools run.
 
-\subsection{Two-minimum tournament}
-Every outgoing magnitude is either the smallest or second-smallest incoming
-magnitude.  The implementation pads the degree to the next power of two using
-the maximum representable magnitude.  A balanced winner tournament retains the
-direct loser encountered by each winner.  The first minimum is the final
-winner; the second minimum is a balanced minimum over the winner's direct
-losers.  Stable left preference is expressed with a less-than-or-equal
-comparison.  Duplicate values are retained by construction.
+\section{Check-Node Datapath}
+\subsection{Canonical exclusive sign}
+\texttt{CheckNode} first turns every input into a canonical sign bit and forms
+one XOR reduction with the syndrome.  The exclusive sign for port $j$ is the
+global parity XOR the canonical sign of port $j$.  This shares a parity tree
+across all outputs and implements Eq.~\eqref{eq:cnu} without building an
+independent XOR tree per edge.
 
-For $P$ padded inputs, the structure uses approximately
-$P+\log_2P-2$ comparisons: $P-1$ in the tournament and
-$\log_2P-1$ along the loser path.  This is a structural argument; FPGA timing
-must still be established by static timing analysis.
+\subsection{Balanced duplicate-preserving two-minimum finder}
+\texttt{TwoMinLogic} pads a degree $d_c$ input sequence to the next power of two
+$P$ with the maximum representable magnitude.  Each tournament candidate
+stores its winner and the direct losers encountered on that winner's path.  A
+balanced, stable winner tree uses less-than-or-equal, so the left value wins a
+tie and the equal right value remains on the loser path.  The first minimum is
+the final winner; a balanced reduction over its direct losers produces the
+second minimum.  Thus $(2,2,5)\mapsto(2,2)$ rather than dropping the duplicate.
+
+The tournament uses $P-1$ comparisons and the loser-path reduction uses
+$\log_2P-1$, for approximately $P+\log_2P-2$ comparisons.  This describes the
+generated structure, not an achieved FPGA delay.  The separate \texttt{TwoMin}
+\texttt{RawModule} is only a thin IO wrapper around the reusable logic object.
+
+Each input whose magnitude equals the unscaled first minimum sets
+\texttt{useSecond}.  If the first minimum is duplicated, all tied edges select
+the second value, which is equal and therefore still correct.  No minimum index
+or one-hot vector is routed.
 
 \subsection{Scaling policies}
-The Valls policy constrains
+Three Scala policy values share the same CNU:
+\begin{itemize}
+  \item \texttt{NoScale} returns the minimum unchanged;
+  \item \texttt{VallsScale(a,b)} implements
+        $\alpha x=(x\gg a)+(x\gg b)$ with one expanding addition and unsigned
+        clipping; and
+  \item \texttt{RampScale(k)} implements $x-(x\gg t)$ for the elaborated
+        choices $0\leq t\leq k$, with an unscaled default for larger encoded
+        controls.
+\end{itemize}
+Only the ramp policy elaborates the leaf \texttt{scaleShift} port; Scala
+\texttt{Option} and pattern matching remove it from other leaf interfaces.
+The two shared minima are each scaled once before broadcast, avoiding a scale
+unit on every edge.
+
+The resulting CNU combinational path is conceptually
 \begin{equation}
- \alpha=2^{-a}+2^{-b},
+ \text{V2C state}\rightarrow
+ \{\text{XOR},\text{two-min},\text{scale}\}\rightarrow
+ \text{CNU result register}.
 \end{equation}
-so each minimum is scaled once using two constant shifts and one addition.
-The result is saturated to the edge magnitude width.
 
-The iteration-ramp policy uses
-\begin{equation}
- \alpha_t x = x-(x\gg t).
-\end{equation}
-Only a bounded set of constant-shift alternatives is elaborated, followed by a
-small selector.  No floating-point arithmetic, exponentiation, general
-divider, or multiplier is inferred.  Scaling the two shared minima before
-routing avoids duplicating the operation per edge.
-
-The CNU output is one broadcast minimum pair plus per-edge sign and selector
-metadata.  This interface represents the routing structure directly instead
-of copying the same minimum pair into every edge bundle.
-
-\section{Variable-Node Units}
-\subsection{Shared variable datapath}
-Each CNU contribution selects one member of its minimum pair and converts the
-result from sign--magnitude to a sign-extended two's-complement value.  A
-balanced adder tree computes the marginal once.  Each outgoing extrinsic
-message is then
+\section{Variable-Node Datapaths}
+\subsection{Shared base logic}
+\texttt{VariableLogic} is the common combinational implementation.  Each input
+uses \texttt{useSecond} to select a broadcast magnitude, combines it with the
+edge sign, and converts the complete sign--magnitude value to a sign-extended
+two's-complement value.  A balanced adder tree computes
+$M_j=\Lambda_j+\sum_i\sigma_{i,j}$ once.  Each outgoing message is then
 \begin{equation}
  R_{i,j}=M_j-\sigma_{i,j}.
 \end{equation}
-This total-minus-own construction avoids one independent adder tree per edge.
-The hard decision is taken from the full working-width total, after which the
-stored marginal and edge outputs are saturated independently.
+This total-minus-own construction replaces $d_v$ independent adder trees with
+one shared sum and $d_v$ subtractors.  \texttt{VariableLogic.connect} is a
+small wiring helper; \texttt{VariableNode} is a combinational \texttt{RawModule}
+that exposes the logic through a stable bundle interface.
 
-The base VNU accepts a signed prior port.  The Valls preset ties this prior to
-the fixed representation of $+1$; retaining the general port lets the same
-datapath support nonuniform priors and the memory-adjusted VNU.
+The base leaf accepts a signed $w_a$-bit prior, so leaf tests can cover positive
+and negative values.  The current static graph's load interface intentionally
+accepts an unsigned $w_m$-bit LLR magnitude and zero-extends it, matching the
+present independent-error examples with $p<1/2$.  There is no hidden hard-coded
+$+1$ prior in the generator.
 
-\subsection{Relay memory}
-The deterministic Relay bias accepts $\Lambda_j(0)$, the previous saturated
-marginal, and an unsigned fixed-point $\beta_j$.  Both products in
-Eq.~\eqref{eq:beta} are evaluated at expanded precision, shifted arithmetically
-by the fractional width, combined, and saturated once into the accumulator
-format.  The resulting bias enters the shared variable datapath.
+\subsection{Relay memory leaf}
+\texttt{RelayBiasLogic} evaluates Eq.~\eqref{eq:beta} with two exact signed
+products.  It prefixes the unsigned coefficient with zero, shifts each product
+by \texttt{fractionalBits}, combines the expanded intermediates, and clips once
+to $w_a$.  \texttt{RelayVariableNode} feeds that bias into the same
+\texttt{VariableLogic}; it does not duplicate the message datapath.
 
-The registered Relay wrapper retains the latest saturated marginal.  An
-\texttt{initialize} event substitutes the prior for the previous marginal,
-which makes the first update independent of stale state.  Changing $\beta_j$
-without initialization starts a new memory policy while preserving the relayed
-posterior.  A pseudorandom generator is deliberately absent: deterministic
-coefficients enable exact reproduction, and an RNG can later be tested as an
-independent component.
+\texttt{RelayVariableNodeUnit} adds a registered previous marginal and result.
+On an \texttt{initialize} event, the prior substitutes for the previous
+marginal, making the first valid update independent of stale state.  A valid
+update captures the new saturated marginal.  Initialization without valid sets
+the retained state to the prior.  The current implementation is an exact
+fixed-point baseline: the paper-specific reduced-logic multiplier, randomized
+coefficient source, Relay legs, and graph-level Relay integration are not yet
+implemented.
 
-\section{Cycle Organization}
-The registered CNU wrapper captures one check update in one cycle.  The
-registered VNU wrapper consumes those results and captures one variable update
-in the following cycle.  A complete flooding-schedule iteration therefore has
-a two-cycle node latency, consistent with the organizations in
-Refs.~\cite{valls2021,maurer2025}.
-
-The present \texttt{MinSumIteration2x2} module elaborates
+The base VNU combinational path is
 \begin{equation}
- H=\begin{bmatrix}1&1\\1&1\end{bmatrix}
+ \begin{aligned}
+ \text{CNU registers}&\rightarrow\text{select/convert}
+ \rightarrow\text{balanced sum}\\
+ &\rightarrow\text{subtract/clip}
+ \rightarrow\text{VNU state register}.
+ \end{aligned}
 \end{equation}
-as a minimal wiring and latency example.  It is a single-iteration datapath,
-not a decoder controller.  The input and output edge arrays are check-major,
-while the two VNUs gather one edge from each check.
 
-\section{Systolic Gauss--Jordan Mesh}
-The \texttt{GaussJordan} subtree implements independent one-bit column and
-diagonal elements without BP message or configuration types.  A future
-controller can therefore schedule the mesh after BP without coupling their
-datapaths.  The fixed opcode encoding is \texttt{PASS}=00,
-\texttt{SWAP}=01, \texttt{ADD}=10, and \texttt{LOCK}=11.
+\section{Convergence Checker}
+\texttt{ConvergenceChecker} accepts the pure Scala \texttt{TannerGraph} in its
+constructor.  Elaboration specializes one native XOR reduction per row of
+$H$.  At runtime it XORs each parity with the loaded syndrome to produce the
+residual in Eq.~\eqref{eq:residual}; one OR reduction followed by negation
+produces \texttt{converged}.  The block is a combinational \texttt{RawModule}:
+it owns neither state nor a stop policy.  In the static top it observes the
+registered VNU decisions and registered syndrome.  A future controller may
+consume its output, but the present local scheduler does not terminate
+iterations automatically.
 
-For stored bit $r$ and input $d$, the column element passes $d$, swaps or locks
-by emitting $r$ and storing $d$, and adds by emitting $r\oplus d$.  The
-diagonal element gives \texttt{reduce\_sig\_i}\(\land r\) priority and emits
-\texttt{SWAP}; otherwise a zero passes, the first one locks $r$, and later ones
-emit \texttt{ADD}.  State, data, and opcode registers use active-high
-synchronous reset and hold when disabled.  The reduction output is instead
-combinational, reset-masked, and not enable-gated.
+\section{Graph-Generated Static Datapath}
+\subsection{Constructor and hierarchy}
+\texttt{StaticTannerDatapath(nodes,q,scale)} receives a fully validated
+\texttt{TannerNodeGraphs} plan; it does not recompute graph topology internally.
+The default arguments are \texttt{Quantization(4,7)} and
+\texttt{RampScale(4)}.  It rejects any check degree below two when elaborating
+the min-sum network.
 
-The Scala-parameterized mesh contains $n$ rows and $n+\ell$ columns.  Diagonal
-cells launch horizontal opcodes, column cells apply them, and the inactive
-lower-left triangle is tied off.  Data moves vertically while the reduction
-signal advances between diagonal cells through an enabled pipeline of fixed
-elaboration-time depth.  Packed $A$ and lifted-$B$ state exports use row-major
-order.  The mesh configuration is immutable Scala data, so it adds no runtime
-configuration network and remains independent of BP message types.
+Scala \texttt{map} calls instantiate one \texttt{StaticCheckStage} for every
+check and one \texttt{StaticVariableStage} for every variable.  Suggested names
+\texttt{cnu\_i} and \texttt{vnu\_j} keep the emitted hierarchy inspectable.
+One traversal of \texttt{nodes.connections} performs all graph wiring:
+\begin{itemize}
+  \item VNU extrinsic state at \texttt{variablePort} drives CNU input at
+        \texttt{checkPort};
+  \item the CNU's single registered minimum pair fans out to each adjacent
+        VNU wire view; and
+  \item that edge's registered sign and selector accompany the pair.
+\end{itemize}
+There is no runtime crossbar, adjacency memory, node-ID decoder, or graph
+configuration bus.  A different $H$ produces a different specialized artifact.
 
-\section{Implementation Structure}
-Table~\ref{tab:files} maps the implementation to its research purpose.
+\subsection{External protocol}
+The top-level IO contains:
+\begin{itemize}
+  \item a flipped \texttt{Decoupled} \texttt{load} channel carrying $m$
+        syndrome bits and $n$ unsigned priors;
+  \item a flipped \texttt{Decoupled} \texttt{step} channel carrying the scale
+        control; and
+  \item a \texttt{Valid} result carrying $n$ marginals, $n$ decisions, $m$
+        residual bits, and \texttt{converged}.
+\end{itemize}
+A \texttt{load.fire} event stores every syndrome and prior, sets each initial
+marginal to the prior, sets every initial decision to false, and initializes
+every variable-to-check edge to positive sign and that variable's prior
+magnitude.  Reloading is supported when the VNU phase is not active.
+
+The top gives load priority: \texttt{step.ready} requires a prior successful
+load, no active VNU phase, and no asserted \texttt{load.valid}.  Therefore a
+step cannot consume uninitialized datapath state, and an asserted load cannot
+silently race a step.  \texttt{result} uses \texttt{Valid}, not
+\texttt{Decoupled}; the consumer observes a pulse and cannot back-pressure the
+fixed two-phase datapath.
+
+\subsection{Two-cycle iteration}
+Only three control registers are reset: \texttt{loaded}, \texttt{vnuPhase}, and
+\texttt{resultValid}.  The cycle sequence after a completed load is:
+\begin{enumerate}
+  \item On a \texttt{step.fire} edge, every CNU stage captures its result from
+        the current V2C state.  \texttt{result.valid} remains low.
+  \item On the next edge, every VNU stage captures its new result from the CNU
+        registers.  \texttt{result.valid} becomes high for the following cycle,
+        and the new marginals, decisions, residual, and convergence flag are
+        observable.
+  \item During that result cycle, \texttt{step.ready} is high again, so a new
+        CNU phase may be accepted at the next edge.
+\end{enumerate}
+The node-update latency and initiation interval are therefore two cycles per
+iteration.  Wide syndrome, CNU-result, prior, and VNU-state registers are not
+reset.  Their enabling protocol guarantees they are written before use; this
+is intentional and is tested at the external interface.
+
+\subsection{Legacy \texorpdfstring{$2\times2$}{2 x 2} teaching top}
+\texttt{MinSumIteration2x2} predates the generic graph-generated top and remains
+as the shortest registered wiring example for
+\begin{equation}
+ H=\begin{bmatrix}1&1\\1&1\end{bmatrix}.
+\end{equation}
+It accepts check-major input edges, instantiates two resetful
+\texttt{CheckNodeUnit}s followed by two resetful \texttt{VariableNodeUnit}s,
+and produces one iteration after two cycles.  It has no internal iterative
+state or graph object.  New decoder work should normally start from
+\texttt{StaticTannerDatapath}; the $2\times2$ top is retained for focused
+pedagogy and regression coverage.
+
+\section{Independent Systolic Gauss--Jordan Subsystem}
+The \path{GaussJordan/} subtree intentionally imports no BP protocol or decoder
+configuration type.  It demonstrates how a later post-processing stage can
+remain separately elaborated, tested, emitted, and scheduled.
+
+\texttt{GjOpcode} fixes the legacy two-bit encoding:
+\texttt{Pass}=00, \texttt{Swap}=01, \texttt{Add}=10, and
+\texttt{Lock}=11.  For stored bit $r$ and input $d$, \texttt{PeCol} passes $d$,
+swaps or locks by emitting $r$ and storing $d$, and adds by emitting
+$r\oplus d$.  \texttt{PeDiag} gives
+\texttt{reduce\_sig\_i}$\land r$ priority and emits \texttt{Swap}; otherwise a
+zero passes, the first one locks state, and subsequent ones emit
+\texttt{Add}.  State, data, and opcode registers have active-high synchronous
+reset and hold on disabled cycles.  The diagonal reduction output is
+combinational, reset-masked, and deliberately not enable-gated.
+
+\texttt{TrapezoidMeshConfig} validates positive $n$, lifted-column count, and
+reduction-hop delay and derives the total column count.  The elaborated mesh
+ties off its lower-left triangle, moves data vertically, moves opcodes
+horizontally, and delays reduction only between diagonal cells on enabled
+cycles.  State exports pack $A$ and lifted $B$ in row-major order with
+coordinate zero at the least-significant bit.  \texttt{FlatIO} and explicit
+\texttt{desiredName}s preserve the legacy external ABI; the historical top
+spelling \texttt{trapeziod\_mesh} is intentionally retained.  A streamed row
+feeder, row count, and decoder/post-processor controller are not present.
+
+\section{Emission and Artifact Organization}
+\subsection{Build contract}
+The repository pins Mill 1.1.2, Scala 2.13.18, Chisel 7.7.0, and ScalaTest
+3.2.19 in \path{build.mill}.  The matching Chisel compiler plugin is enabled,
+and warning-oriented Scala compiler options include deprecation, feature, and
+initialization checks.  The included Mill wrapper is the sole supported build
+interface.  \path{.mill-jvm-opts} supplies the project root required by the
+Chisel test-directory flow.  Continuous integration installs Java 17 and
+Verilator and runs the complete Mill test target for main-branch or tag pushes,
+pull requests, and manual dispatches.
+
+\subsection{Named generator tops}
+\texttt{Generate.main} maps a short research target name to a zero-argument
+module generator.  Each invocation writes one FIRRTL-dialect MLIR file and one
+SystemVerilog file under a requested directory.  The two artifacts come from
+fresh but equivalently configured elaborations of the selected closure.  CIRCT
+emission disables random initialization, strips debug information, and enables
+default layer specialization so generated artifacts are deterministic and
+compact.
 
 \begin{table}[t]
-\caption{Source organization.}
-\label{tab:files}
+\caption{Named emission targets.}
+\label{tab:targets}
 \centering
-\begin{tabular}{@{}ll@{}}
+\scriptsize
+\begin{tabular}{@{}p{0.33\columnwidth}p{0.60\columnwidth}@{}}
 \toprule
-File & Responsibility \\
+Target & Emitted top \\
 \midrule
-\texttt{Config.scala} & Validated immutable parameters \\
-\texttt{graph/TannerGraph.scala} & Normalized static graph and edge IDs \\
-\texttt{TannerNodeGraphs.scala} & Rooted CNU and VNU port views \\
-\texttt{Protocol.scala} & Hardware message bundles \\
-\texttt{Arithmetic.scala} & Conversion, scaling, sums, saturation \\
-\texttt{TwoMin.scala} & Direct-loser tournament \\
-\texttt{CheckNode.scala} & Combinational and registered CNU \\
-\texttt{VariableNode.scala} & Base and Relay VNUs \\
-\texttt{Iteration.scala} & Fixed $2\times2$ example \\
-\texttt{GaussJordan/} & Binary systolic elements and mesh \\
-\texttt{Generate.scala} & MLIR and SystemVerilog emission \\
-\texttt{Reference.scala} & Independent integer oracle \\
+\texttt{two-min} & \texttt{TwoMin} \\
+\texttt{check-valls} & \texttt{CheckNode}, constant scaling \\
+\texttt{check-relay} & \texttt{CheckNode}, ramp scaling \\
+\texttt{variable} & \texttt{VariableNode} \\
+\texttt{relay-variable} & combinational Relay VNU \\
+\texttt{relay-unit} & registered Relay VNU \\
+\texttt{iteration} & legacy \texttt{MinSumIteration2x2} \\
+\texttt{convergence} & Steane convergence checker \\
+\texttt{static-steane} & full static Steane datapath \\
+\texttt{pe-col}, \texttt{pe-diag} & Gauss--Jordan leaf PEs \\
+\texttt{trapezoid-mesh} & three-row example mesh \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The project pins Scala 2.13.18 and Chisel 7.7.0.  Mill is the sole build
-interface.  Chisel elaboration produces a FIRRTL-dialect MLIR artifact, and the
-bundled CIRCT firtool lowers the same generator to SystemVerilog.  Selected
-artifacts should be archived with the generator configuration, Git revision,
-and tool versions rather than treating a mutable build directory as a result.
+\path{scripts/emit.sh} keeps emission separate from tests and accepts a target
+and optional output directory.  \path{scripts/verify-rtl.sh} consumes an already
+emitted SystemVerilog file and top name and performs standalone Verilator lint;
+it does not elaborate Scala or prove behavior.  It disables only warning
+classes caused by CIRCT's single-file naming, unused portions of intentional
+fixed-point intermediates, and intentionally open boundary pins.  Generated
+directories are excluded from version control.  A result-bearing emitted
+artifact should instead be archived immutably with graph/configuration input,
+Git revision, and Scala, Chisel, CIRCT, Verilator, synthesis, and FPGA tool
+versions.
 
 \section{Verification Methodology}
-The verification hierarchy is intentionally redundant at semantic boundaries
-but avoids duplicate hardware implementations.
+The verification ladder crosses semantic boundaries deliberately.  It does not
+use emitted RTL text as the golden specification.
 
-\subsection{Independent reference model}
-The Scala oracle represents messages with ordinary integers and booleans.  It
-does not call Chisel arithmetic helpers.  This separation prevents a shared
-implementation mistake from making the DUT and oracle agree accidentally.
+\subsection{Pure Scala arithmetic oracle}
+\path{Reference.scala} defines test-only messages and decoder state using
+ordinary \texttt{Int} and \texttt{Boolean}.  Its two-minimum oracle sorts, its
+check and variable functions use direct integer equations, and its graph
+iteration follows the canonical node plan.  It calls no Chisel arithmetic
+helper.  It does share validated configuration and graph metadata with the DUT;
+separate graph tests therefore lock topology and port mapping before the model
+is used for graph-level comparisons.
 
-\subsection{Unit tests}
-The current tests cover:
+\path{Harnesses.scala} wraps combinational \texttt{RawModule}s in small clocked
+test tops where required by ChiselSim.  These harnesses add no alternative
+algorithm; they expose leaf IO to the simulator.
+
+\subsection{Executable test inventory}
+Table~\ref{tab:tests} maps each maintained specification to its claim.  This is
+also the recommended order for debugging a failed graph-level test.
+
+\begin{table*}[t]
+\caption{Verification inventory and implemented claim.}
+\label{tab:tests}
+\centering
+\scriptsize
+\begin{tabular}{@{}p{0.235\textwidth}p{0.69\textwidth}@{}}
+\toprule
+Specification or executable & Claim established \\
+\midrule
+\path{ConfigSpec.scala} & Relay defaults are locked; representative LLR probabilities quantize and saturate as specified. \\
+\path{TannerGraphSpec.scala} & Rows normalize, column/check/variable views derive correctly, edge IDs are stable, and malformed adjacency is rejected. \\
+\path{TannerNodeGraphsSpec.scala} & Exact Steane check and variable views, degrees, global-edge bijection, and all local port bindings. \\
+\path{TwoMinSpec.scala} & Exhaustive $8^4$ comparison for four three-bit inputs, including all duplicate-minimum cases. \\
+\path{CheckNodeSpec.scala} & Exhaustive unscaled degree-three behavior over all two-bit magnitudes, signs, and syndromes; directed Valls and ramp scaling. \\
+\path{VariableNodeSpec.scala} & Fixed-seed randomized base VNU comparison, full eight-bit hard-decision range, exact Relay bias cases, and registered feedback. \\
+\path{ConvergenceCheckerSpec.scala} & All $2^7$ Steane estimates crossed with all $2^3$ syndromes for $H\hat e\oplus S$ and convergence. \\
+\path{IterationSpec.scala} & The legacy $2\times2$ result and its two-cycle validity protocol. \\
+\path{StaticTannerDatapathSpec.scala} & Step-before-load rejection, prior-to-edge initialization, all eight Steane syndromes, four consecutive iterations, two-cycle timing, marginals, decisions, residual, and convergence against the Scala oracle. \\
+\path{EndToEndSpec.scala} & Strict file-schema, graph-dimension, prior-range, syndrome, and iteration validation before elaboration. \\
+\path{GaussJordanPESpec.scala} & Opcode encodings, all PE transitions, synchronous reset, disabled hold, and combinational reduction forwarding. \\
+\path{TrapezoidMeshSpec.scala} & Configuration rejection, boundary behavior, an independent cycle oracle under deterministic and random traffic, row-major packing, hold/reset, and reduction delays one through three. \\
+\path{StaticGolden.scala} plus \path{sim_main.cpp} & The exact emitted static Steane SystemVerilog agrees with deterministic Scala golden records at every iteration. \\
+\path{EndToEnd.scala} plus \path{examples/EndToEnd/sim_main.cpp} & A file-defined static graph's exact emitted SystemVerilog agrees with the Scala trajectory before a final result is recorded. \\
+\path{RotatedSurfaceCode/run.sh} & Stim-derived distance-three, -five, and -seven graphs preserve DEM priors and logical rows and pass the exact artifact comparison. \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+The complete ScalaTest suite is run by \path{scripts/test.sh} and by continuous
+integration.  ChiselSim exercises the generated hardware with Verilator.  The
+standalone lint script is a separate, weaker check: it establishes that a named
+emitted artifact is accepted by Verilator with the selected warnings, not that
+its values match the algorithm.
+
+\subsection{Exact emitted-SystemVerilog comparison}
+The example in \path{examples/StaticTannerDatapath/} closes the gap between
+testing a Chisel generator and testing the saved RTL file.  Its script performs
+four explicit stages:
+\begin{enumerate}
+  \item emit the exact static Steane \texttt{.sv} artifact;
+  \item run the test-only \texttt{StaticGolden} Scala program;
+  \item ask Verilator to compile that saved \texttt{.sv} with the C++ harness;
+  \item run the resulting executable and compare every output record.
+\end{enumerate}
+The default stimulus contains 32 independently generated prior vectors, all
+eight syndromes for each vector, and four consecutive iterations, giving 1024
+checked records.  A fixed seed controls Scala's pseudorandom generator.
+Individual physical error probabilities are sampled log-uniformly from
+$[10^{-4},0.2)$ and converted to four-bit positive integer LLR priors by
+\begin{equation}
+ \operatorname{clip}_{[0,15]}
+ \left(\operatorname{round}\left[
+ 2\ln\frac{1-p}{p}\right]\right).
+\end{equation}
+
+Each line of the golden file contains, in order, the packed syndrome, seven
+priors, the iteration control, seven expected signed marginals, packed hard
+decisions, packed residual, and convergence bit.  The C++ harness drives the
+flattened CIRCT top-level ABI, checks \texttt{load.ready}, checks
+\texttt{step.ready}, requires result invalid after the CNU edge and valid after
+the VNU edge, decodes five-bit signed marginals, and exits at the first named
+mismatch.  It is intentionally specialized to this three-check, seven-variable,
+five-bit stress artifact.  The following file-driven example uses a small
+packed ABI when a graph-independent behavioral transport is needed.
+
+The end-to-end script invokes Mill because it regenerates both RTL and golden
+records.  After generation, the behavioral consumer itself needs only the
+immutable SystemVerilog file, golden records, C++ harness, and Verilator.  The
+current CI runs the Scala/Chisel suite; the exact-artifact example is a separate
+manual acceptance command at this revision.
+
+\subsection{File-driven decoder experiment}
+\path{examples/EndToEnd/problem.json} is a minimal experiment description with
+exactly six fields: schema version, column count $n$, sparse
+\texttt{row\_ones}, unsigned four-bit prior magnitudes, binary syndrome, and a
+positive fixed iteration count.  The row count $m$, column adjacency, stable
+edge IDs, and local CNU/VNU ports are derived by the same pure Scala graph
+factories used by the production generator.  Validation therefore completes
+before Chisel elaboration.  Changing $H$ deliberately produces a new static
+artifact; syndrome and prior remain runtime inputs.
+
+The test-only \texttt{EndToEnd} program performs three small tasks.  It parses
+and copies the input, asks the independent \texttt{Reference} model for the
+state after every iteration, and calls the common \texttt{Generate.emit}
+helper.  \texttt{StaticTannerArtifact} is only a transport wrapper around the
+production \texttt{StaticTannerDatapath}: variable zero and check zero occupy
+the least-significant packed fields, while arithmetic and scheduling remain in
+the production core.  Its stable desired name lets one graph-independent C++
+harness compile each specialized artifact without parsing generated names.
+
+The Verilator executable checks load and step readiness, result validity after
+each of the two phase edges, every signed marginal, every hard decision, every
+residual bit, and convergence for every requested iteration.  It writes
+\texttt{result.json} only after all comparisons pass.  That file records the
+verified final correction, quantized marginal, residual, and convergence.
+For presentation it also reports
+\begin{equation}
+ \tilde p_j=\frac{1}{1+\exp(M_j/S)},\qquad S=2,
+\end{equation}
+which is explicitly an uncalibrated transformation of the quantized metric,
+not an exact posterior probability and not part of the bit-exact acceptance
+condition.  Failure to converge within the fixed budget is a valid result;
+only a malformed experiment or Scala/RTL disagreement fails the executable.
+
+\subsection{Stim rotated-surface-code experiment}
+\path{examples/RotatedSurfaceCode/} is a thin problem-source layer above the
+generic file-driven check.  Stim generates
+\texttt{surface\_code:rotated\_memory\_x} with rounds equal to distance and
+the four circuit-noise probabilities set to $0.05$.  The example supports
+$d\in\{3,5,7\}$ without adding Stim or Python to the production Chisel module.
+It archives the circuit, flattened decomposed detector error model (DEM), and
+the exact Stim version beside each generated experiment.
+
+Each unique DEM error effect is one decoder variable.  Detector incidence
+forms a column of $H$ and logical-observable incidence forms the corresponding
+column of $L$.  Identical detector \emph{and} logical supports are combined by
+the XOR probability law
+\begin{equation}
+ p_{a\oplus b}=p_a(1-p_b)+p_b(1-p_a),
+\end{equation}
+whereas equal detector support with different logical support remains distinct.
+The implementation stores both matrices sparsely: \texttt{row\_ones} for $H$
+in the decoder problem and \texttt{logical\_ones} for $L$ in provenance
+metadata.  Raw DEM probabilities and unquantized
+$\log((1-p)/p)$ values are retained.  The latter are rounded with scale two
+and saturated into the locked unsigned four-bit prior ABI; the generator
+rejects a probability outside $(0,0.5)$ because that ABI cannot encode a
+negative prior.
+
+Stim supplies one sampled syndrome and actual observable vector.  After the
+exact Scala/RTL comparison, the example evaluates
+\begin{equation}
+ \hat o=L\hat e\pmod 2.
+\end{equation}
+The logical match is reported only when $H\hat e=S$; non-convergence is counted
+as a logical failure but not an implementation mismatch.  This keeps three
+claims separate: DEM construction, bit-exact hardware realization, and decoder
+quality on a sampled shot.
+
+Table~\ref{tab:surface-e2e} records the completed eight-iteration checks on the
+current host with Stim 1.15.0 and Verilator 5.048.  SystemVerilog size is the
+Verilator source report; emission and Verilator columns are observed wall
+seconds.  Every saved artifact matched every Scala golden iteration.  The
+chosen noisy shot did not converge at any distance, so these runs establish
+implementation equivalence and scaling of the static artifact, not decoder
+performance.
+
+\begin{table}[t]
+\caption{Rotated-surface exact-artifact checks.}
+\label{tab:surface-e2e}
+\centering
+\scriptsize
+\begin{tabular}{@{}rrrrrrr@{}}
+\toprule
+$d$ & $m$ & $n$ & $E$ & SV MB & Emit s & Vlt s \\
+\midrule
+3 & 24 & 221 & 568 & 1.214 & 6 & 15.581 \\
+5 & 120 & 1679 & 5008 & 8.135 & 28 & 94.549 \\
+7 & 336 & 5473 & 17160 & 23.842 & 92 & 392.370 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{SystemVerilog-only 30-iteration profile}
+\path{examples/RotatedSurfaceCode30/} fixes the three supported distances and
+an iteration budget of 30.  Its test-only entry point calls the production
+generator through \texttt{Generate.emitSystemVerilog}; unlike the inspection
+flow, it does not request or write FIRRTL-dialect MLIR.  Each distance directory
+separates the emitted \texttt{rtl/StaticTannerArtifact.sv} from Stim provenance
+and from Scala golden records and Verilator products under
+\texttt{verification/}.  The RTL directory is therefore an unambiguous
+synthesis input rather than a mixture of representations.
+
+The standalone harness still checks the handshake, signed marginal, hard
+decision, residual, and convergence after every iteration.  Only after those
+bit-exact checks pass does a small reporting step retain four final fields:
+\texttt{soft\_outputs}, \texttt{corrections}, \texttt{converged}, and
+\texttt{logical\_failure}.  The first field is the signed quantized marginal,
+not a calibrated probability.  The last is true when the correction fails to
+clear the syndrome or when its logical parity differs from the sampled Stim
+observable.  Verification data remain available for audit without becoming
+reported decoder metrics.  Stim is isolated in the ignored repository-local
+\texttt{.venv}, reproducibly created by \path{scripts/setup-stim.sh}.
+
+The deterministic default shot was run with Stim 1.16.0 and Verilator 5.048.
+All 30 states matched the Scala oracle at every distance.  The sample-specific
+decoder outcomes in Table~\ref{tab:surface-30} are not failure-rate estimates.
+
+\begin{table}[t]
+\caption{SystemVerilog-only 30-iteration checks.}
+\label{tab:surface-30}
+\centering
+\small
+\begin{tabular}{@{}rrrr@{}}
+\toprule
+$d$ & Exact match & Converged & Logical failure \\
+\midrule
+3 & yes & yes & no \\
+5 & yes & no & yes \\
+7 & yes & no & yes \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{What simulation does not establish}
+Behavioral tests establish finite sets of values, protocol conditions, and
+cycle latency.  They do not establish maximum clock frequency, critical path,
+lookup-table or register count, routing congestion, memory use, power, decoding
+failure rate, or throughput across many independently resident shots.  Those
+claims require a named code, stimulus distribution, stopping policy, FPGA,
+synthesis/place-and-route tool version, constraints, and archived reports.
+
+\section{Repository Map and Reproduction}
+The maintained repository is deliberately shallow:
 \begin{itemize}
-  \item exhaustive two-minimum behavior for four three-bit inputs;
-  \item exhaustive CNU signs, syndromes, magnitudes, zero, and ties for a small node;
-  \item directed Valls and iteration-ramp scaling vectors;
-  \item fixed-seed randomized VNU comparison against the oracle;
-  \item deterministic Relay bias values including $\beta<1$, $\beta=1$, and $\beta>1$;
-  \item registered Relay marginal feedback;
-  \item pure Scala graph normalization, transpose construction, stable edge
-        numbering, and malformed-adjacency rejection;
-  \item exact Steane CNU/VNU node views and a two-way bijection with all twelve
-        global edges;
-  \item exhaustive Gauss--Jordan transitions, reset, enable hold, and
-        reduction forwarding;
-  \item cycle-accurate mesh topology, reduction delay, and packed-state
-        ordering for small parameter sets; and
-  \item cycle-accurate comparison of the fixed $2\times2$ graph.
+  \item \path{src/main/scala/chipsldpc/} contains pure elaboration records,
+        hardware generators, and the named emission entry point;
+  \item \path{src/test/scala/chipsldpc/} contains independent arithmetic models,
+        simulation harnesses, specifications, and golden-record generation;
+  \item \path{scripts/} contains one concise action per script: test, emit,
+        lint an emitted RTL artifact, or create the isolated Stim environment;
+  \item \path{examples/} composes those actions into inspectable PE, mesh, and
+        exact static-decoder workflows;
+  \item \path{build.mill}, the Mill wrapper, and \path{.mill-jvm-opts} define the
+        reproducible build entry; and
+  \item \path{paper/main.tex} is this evolving implementation record.
 \end{itemize}
-ChiselSim uses Verilator for these behavioral tests.  The emitted
-SystemVerilog is additionally checked with standalone Verilator lint.  The
-single-file CIRCT output contains multiple module declarations, and fixed-point
-products intentionally discard fractional bits.  Filename, unused-bit, and
-intentional empty boundary-pin warning classes are disabled explicitly; other
-warning classes remain fatal.
+IDE metadata is not part of the architecture.  Generated \path{build/}, test,
+and TeX auxiliary products are ignored and must not be cited as immutable
+research outputs.
 
-\subsection{Claims not established by simulation}
-Behavioral simulation establishes values and cycle latency.  It does not
-establish maximum clock frequency, critical-path delay, lookup-table count,
-register count, routing congestion, or power.  Those quantities require a
-documented synthesis and implementation flow for a named FPGA and tool
-version.  No timing or resource claim is made in the current manuscript.
-
-\section{Reproduction}
-From the repository root, the current milestone is reproduced by
+From the repository root, run the complete behavioral suite:
 \begin{verbatim}
 ./scripts/test.sh
+\end{verbatim}
+Emit and lint the static decoder as two separate steps:
+\begin{verbatim}
 ./scripts/emit.sh static-steane
-./scripts/verify-rtl.sh build/generated/static-steane/StaticTannerDatapath.sv StaticTannerDatapath
+./scripts/verify-rtl.sh \
+  build/generated/static-steane/\
+StaticTannerDatapath.sv \
+  StaticTannerDatapath
+\end{verbatim}
+Run the exact emitted-artifact comparison:
+\begin{verbatim}
+./examples/StaticTannerDatapath/run.sh
+\end{verbatim}
+Its optional arguments are prior-set count, iteration count, and seed.  Run the
+file-driven experiment:
+\begin{verbatim}
+./examples/EndToEnd/run.sh
+\end{verbatim}
+Its optional arguments replace the problem JSON and output directory.  Run a
+Stim-derived rotated-surface artifact, or all requested distances:
+\begin{verbatim}
+./scripts/setup-stim.sh
+./examples/RotatedSurfaceCode/run.sh 3
+cd examples/RotatedSurfaceCode
+for d in 3 5 7; do ./run.sh "$d"; done
+\end{verbatim}
+The optional second and third arguments select the output directory and fixed
+iteration count.  The fixed SystemVerilog-only, 30-iteration profile is
+\begin{verbatim}
+./examples/RotatedSurfaceCode30/run.sh
+\end{verbatim}
+Focused tests use Mill's \texttt{testOnly} target with the fully qualified
+specification name.  The Gauss--Jordan leaf and mesh examples are respectively
+\begin{verbatim}
 ./examples/GaussJordan/run.sh
 cd examples/GaussJordan/TrapezoidMesh
 ./run.sh
 \end{verbatim}
-Emission writes inspectable MLIR and SystemVerilog into the named build
-directory.  Focused tests may be run with Mill's \texttt{testOnly} target.
-Build directories are excluded from version control.
+Each leaves both \texttt{.fir.mlir} and \texttt{.sv} files under its named
+generated directory for inspection.
+
+When inspecting a new decoder change, the intended research loop is: change
+one pure configuration or leaf rule; extend the independent Scala oracle and
+focused specification; run that test; emit the smallest relevant top; inspect
+the FIRRTL-dialect MLIR for widths and structure; inspect and lint the emitted
+SystemVerilog; then run the exact artifact comparison if the static top is
+affected.  This sequence localizes semantic, elaboration, lowering, and
+artifact-integration failures without creating parallel implementations in
+production source.
 
 \section{Planned Extensions}
-The next implementation stages are deliberately outside this milestone:
+The next additions should preserve the same boundaries:
 \begin{enumerate}
-  \item add the Relay controller for iteration count, legs, convergence
-        response, and correction output;
-  \item reproduce the paper-specific reduced-precision Relay multiplier as a
+  \item make the graph-level VNU policy explicit and integrate the currently
+        tested Relay memory leaf without duplicating static wiring;
+  \item add a controller for iteration count, convergence response, Relay legs,
+        and correction completion while retaining the checker as a pure
+        combinational observer;
+  \item implement the paper-specific reduced-logic Relay multiplier as a
         compile-time alternative to the exact fixed-point baseline;
-  \item add optional, independently verified coefficient generation;
-  \item stream multiple syndrome shots while explicitly banking or replicating
-        decoder state; and
-  \item report post-synthesis and post-route timing, resources, and power.
+  \item add optional coefficient generation as an independently tested source;
+  \item define a stable artifact-level shot interface, then bank or replicate
+        state to evaluate parallel syndrome streams; and
+  \item add immutable FPGA synthesis, placement, timing, resource, power, and
+        benchmark records followed by analysis-only tables and plots.
 \end{enumerate}
+A new policy should first be a small immutable Scala choice or a narrow bundle
+extension.  Graph topology must remain elaboration-only, and benchmarking must
+consume emitted artifacts rather than import the Chisel generator.
 
 \section{Threats to Validity}
-The static Steane graph validates composition but is not representative of
-qLDPC routing pressure.  Small exhaustive widths expose semantic corner cases but do
-not prove all parameter combinations.  The exact Relay fixed-point baseline
-does not yet reproduce every approximation in the published FPGA datapath.
-Finally, CIRCT transformations may change the textual RTL without changing its
-behavior, so semantic tests are treated as primary and textual checks are kept
-minimal.
+The Steane graph validates irregular variable degrees, static composition, and
+the complete verification path but does not represent qLDPC routing pressure.
+Small exhaustive configurations expose ties and fixed-width corner cases but do
+not prove every degree/width combination.  The Scala graph and graph-level
+oracle intentionally share topology records, so their separate structural tests
+are important but are not a formal equivalence proof.  Random LLR priors are
+deterministic and useful for regression, not a decoder-performance study.  The
+current Relay leaf uses exact multipliers and is not integrated in the static
+network; it therefore does not reproduce the complete published Relay
+architecture.  CIRCT may change textual RTL while preserving semantics, so
+behavioral comparisons are primary and textual checks remain limited to
+structure inspection and lint.
 
 \section{Conclusion}
-The current \texttt{chipsLDPC} milestone demonstrates a compact Chisel
-decomposition of two related qLDPC min-sum architectures.  Shared sign,
-minimum, accumulation, extrinsic, and saturation logic is separated from
-static scaling and memory policies, while binary Gauss--Jordan elements remain
-an independent post-processing component.  Numeric semantics and cycle
-behavior are executable rather than implicit.  This provides a controlled base
-for graph generation and FPGA experiments without committing the repository to
-a large framework prematurely.
+The present \texttt{chipsLDPC} revision implements a complete small path from a
+validated Scala parity-check graph to a statically wired, two-cycle min-sum
+iteration network and an independently checked SystemVerilog artifact.  Shared
+minimum broadcasting, canonical sign/magnitude conversion, balanced arithmetic,
+explicit saturation, load initialization, convergence, and cycle handshakes are
+all visible in source and executable tests.  Relay memory and binary
+Gauss--Jordan logic are isolated extensions rather than hidden changes to the
+base datapath.  The resulting organization is small enough to inspect from
+configuration through RTL while retaining clear insertion points for future
+decoder control, parallel-shot benchmarking, and FPGA results.
 
 \begin{thebibliography}{9}
 \bibitem{valls2021}
@@ -450,6 +959,10 @@ M.~Schoeberl, \emph{Digital Design with Chisel}, 6th ed., 2025.
 \bibitem{chisel}
 CHIPS Alliance, ``Chisel documentation,''
 \url{https://www.chisel-lang.org/docs}, accessed Aug.~31, 2026.
+
+\bibitem{circt}
+LLVM Project, ``CIRCT documentation,''
+\url{https://circt.llvm.org/docs/}, accessed Sep.~1, 2026.
 \end{thebibliography}
 
 \end{document}

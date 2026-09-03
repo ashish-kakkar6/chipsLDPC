@@ -65,9 +65,9 @@ final class PeDiag extends RawModule {
   private val dataNext = WireDefault(false.B)
   private val opNext = WireDefault(GjOpcode.Pass)
 
-  when(reduce_sig_i && r) {
+  when(reduce_sig_i) {
     dataNext := data_i
-    opNext := GjOpcode.Swap
+    when(r) { opNext := GjOpcode.Swap }
   }.elsewhen(!data_i) {
     // Defaults implement pass.
   }.elsewhen(!r) {

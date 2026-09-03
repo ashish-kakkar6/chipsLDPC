@@ -64,9 +64,9 @@ final class TrapezoidMeshSpec extends AnyFreeSpec with ChiselSim {
         for (row <- 0 until rows; col <- row until cols) {
           val dataIn = if (row == 0) bit(in.top, col) else data(row - 1)(col)
           if (col == row) {
-            if (reduceIn(row) && state(row)(col)) {
+            if (reduceIn(row)) {
               nextData(row)(col) = dataIn
-              nextOp(row)(col) = Op.Swap
+              nextOp(row)(col) = if (state(row)(col)) Op.Swap else Op.Pass
             } else if (!dataIn) {
               nextData(row)(col) = false
               nextOp(row)(col) = Op.Pass

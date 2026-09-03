@@ -290,6 +290,7 @@ Temporary Items
 ## Build generated
 build/
 /out/
+.venv/
 paper/*.aux
 paper/*.log
 paper/*.out

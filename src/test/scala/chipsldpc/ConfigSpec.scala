@@ -3,8 +3,8 @@ package chipsldpc
 import org.scalatest.freespec.AnyFreeSpec
 
 final class ConfigSpec extends AnyFreeSpec {
-  "Relay defaults lock the int4 plus sign representation" in {
-    assert(RelayDefaults.q == Quantization(4, 5))
+  "Relay defaults use four-bit messages and seven-bit marginals" in {
+    assert(RelayDefaults.q == Quantization(4, 7))
     assert(RelayDefaults.scale == RampScale(4))
     assert(RelayDefaults.priorScale == 2)
     assert(RelayDefaults.memoryScale == 8)
