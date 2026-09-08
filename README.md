@@ -25,6 +25,7 @@ an independent binary Gauss–Jordan mesh.
   reports only soft outputs, corrections, convergence, and logical failure.
 - A pinned `[144,12,12]` bivariate-bicycle Z-check-sector experiment with one
   all-column ranking and a 64-to-128-to-256 OSD-0 fallback ladder.
+- A paired BP-only BB144 sweep using the same shots, Verilator harness, and report.
 - A [parameterized binary Gauss–Jordan mesh](src/main/scala/chipsldpc/GaussJordan/README.md)
   assembled from reusable column and diagonal processing elements.
 - An autonomous BP/OSD-0 composition with optional filtering and scope, one
@@ -71,6 +72,7 @@ use the repository-local Python environment created by `scripts/setup-stim.sh`.
 ./examples/RotatedSurfaceCode30/run.sh
 ./scripts/setup-bb144.sh
 ./examples/BivariateBicycle144/run.sh
+./examples/BivariateBicycle144BpOnly/run.sh
 ./examples/BpFilteredOsd0/run.sh
 ```
 
@@ -108,6 +110,8 @@ only SystemVerilog and narrows each final result to four decoder outcomes.
 The [bivariate-bicycle experiment](examples/BivariateBicycle144/README.md)
 reconstructs the pinned Z-check circuit, emits the progressive BP/OSD artifact,
 and records 1000 shots at each `p=0.001,0.002,...,0.009` by default.
+Its [BP-only pair](examples/BivariateBicycle144BpOnly/README.md) reuses the same
+samples and report while omitting all sorter and OSD hardware.
 The [BP-filtered-OSD0 example](examples/BpFilteredOsd0/README.md) verifies the
 exact emitted hierarchy against independent BP and GF(2) software models.
 

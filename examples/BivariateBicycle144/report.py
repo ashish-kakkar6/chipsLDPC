@@ -58,9 +58,7 @@ def summarize(p, rows, qec_cycles):
     word_low, word_high = wilson(failures, len(rows))
     clocks = [int(row["total_cycles"]) for row in rows]
     statuses = Counter(row["status"] for row in rows)
-    selected = Counter(
-        int(row["selected"]) for row in rows if row["status"] != "bp_converged"
-    )
+    selected = Counter(int(row["selected"]) for row in rows if int(row["selected"]) > 0)
     return {
         "p": p,
         "shots": len(rows),
@@ -72,6 +70,7 @@ def summarize(p, rows, qec_cycles):
         "logical_rate_ci95_low": per_qec_cycle(word_low, qec_cycles),
         "logical_rate_ci95_high": per_qec_cycle(word_high, qec_cycles),
         "bp_converged": statuses["bp_converged"],
+        "bp_nonconverged": statuses["bp_nonconverged"],
         "osd_solved": statuses["osd_solved"],
         "osd_inconsistent": statuses["osd_inconsistent"],
         "status_counts": dict(statuses),
@@ -110,12 +109,12 @@ def plot_rate(axis, records):
     axis.legend()
 
 
-def write_plots(records, overall, output):
+def write_plots(records, overall, output, label):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    title = f"BB144 Z-check BP + OSD-0, {records[0]['shots']:,} shots/p"
+    title = f"{label}, {records[0]['shots']:,} shots/p"
     figure, axis = plt.subplots(figsize=(6.4, 4.2))
     plot_rate(axis, records)
     axis.set(xlabel="physical error probability p", title=title)
@@ -149,6 +148,7 @@ def main():
     parser.add_argument("sweep", type=Path)
     parser.add_argument("run", type=Path)
     parser.add_argument("output", type=Path)
+    parser.add_argument("--label", default="BB144 Z-check BP + OSD-0")
     args = parser.parse_args()
 
     with args.raw.open(newline="") as stream:
@@ -186,7 +186,8 @@ def main():
         "timing": breakdown(raw),
     }
     report = {
-        "schema": "chipsldpc.bb144-progressive-osd0-sweep.v1",
+        "schema": "chipsldpc.bb144-decoder-sweep.v1",
+        "decoder": args.label,
         "logical_failure": (
             "unsuccessful decoder status or any mismatch among the 12 "
             "Z-check-sector logical observables"
@@ -220,7 +221,7 @@ def main():
                 writer.writerow((p, stage, values["cycles"],
                                  values["mean_cycles"], values["share"]))
 
-    write_plots(records, overall, args.output)
+    write_plots(records, overall, args.output, args.label)
     print("p       shots failures P_word      p_L/QEC     total_clocks mean_clocks")
     for row in records:
         print(f"{row['p']:<7g} {row['shots']:>5} {row['failures']:>8} "

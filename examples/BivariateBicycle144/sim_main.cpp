@@ -1,4 +1,8 @@
+#ifdef BP_ONLY_ARTIFACT
+#include "VBpOnlyArtifact.h"
+#else
 #include "VBpFilteredOsd0Artifact.h"
+#endif
 #include "verilated.h"
 
 #include <algorithm>
@@ -12,7 +16,11 @@
 #include <string>
 #include <vector>
 
+#ifdef BP_ONLY_ARTIFACT
+using Dut = VBpOnlyArtifact;
+#else
 using Dut = VBpFilteredOsd0Artifact;
+#endif
 
 template <typename T> static void clearPort(T &port) {
   if constexpr (VlIsVlWide<T>::value)
@@ -136,7 +144,8 @@ static Frame decode(
   return frame;
 }
 
-static const char *statusName(int status) {
+static const char *statusName(int status, bool bpOnly) {
+  if (bpOnly && status == 2) return "bp_nonconverged";
   static const char *names[] = {"bp_converged", "osd_solved", "osd_inconsistent", "osd_overflow"};
   return status >= 0 && status < 4 ? names[status] : "invalid";
 }
@@ -154,22 +163,24 @@ static ArtifactConfig readConfig(std::istream &input) {
   ArtifactConfig config{};
   int count;
   if (!(input >> config.m >> config.n >> config.magnitudeBits >> config.accumulatorBits
-              >> config.threshold >> count) || count < 1)
+              >> config.threshold >> count) || count < 0)
     fail("invalid artifact configuration");
   config.prefixes = readValues(input, count, "artifact prefixes");
-  if (config.prefixes.front() < 1 || config.prefixes.back() > config.n ||
+  if (!config.prefixes.empty() && (config.prefixes.front() < 1 ||
+      config.prefixes.back() > config.n ||
       !std::is_sorted(config.prefixes.begin(), config.prefixes.end()) ||
-      std::adjacent_find(config.prefixes.begin(), config.prefixes.end()) != config.prefixes.end())
+      std::adjacent_find(config.prefixes.begin(), config.prefixes.end()) != config.prefixes.end()))
     fail("invalid artifact prefixes");
   return config;
 }
 
 static Timing breakdown(
-    const Frame &frame, int n, int eligible, const std::vector<int> &prefixes) {
+  const Frame &frame, int n, int eligible, const std::vector<int> &prefixes) {
+  const bool bpOnly = prefixes.empty();
   const bool bp = frame.status == 0;
-  const int bpOutput = bp ? frame.stream.size() : 0;
-  const int sort = bp ? 0 : n + eligible;
-  const int osdOutput = frame.status == 1 ? frame.stream.size() : 0;
+  const int bpOutput = bp || bpOnly ? frame.stream.size() : 0;
+  const int sort = bp || bpOnly ? 0 : n + eligible;
+  const int osdOutput = !bpOnly && frame.status == 1 ? frame.stream.size() : 0;
   int solverMesh = 0;
   if (frame.solverCycles)
     for (int prefix : prefixes) {
@@ -177,7 +188,7 @@ static Timing breakdown(
       if (frame.selected <= prefix) break;
     }
   const int solverRows = frame.solverCycles - solverMesh;
-  const int osdControl = frame.osdCycles - sort - frame.solverCycles - osdOutput;
+  const int osdControl = bpOnly ? 0 : frame.osdCycles - sort - frame.solverCycles - osdOutput;
   const int dispatch = frame.cycles - frame.bpCycles - frame.osdCycles - bpOutput;
   if (dispatch < 0 || osdControl < 0 || solverMesh < 0) fail("invalid timing decomposition");
   return {dispatch, frame.bpCycles, bpOutput, sort, solverRows, solverMesh, osdOutput, osdControl};
@@ -230,7 +241,7 @@ static int exactMain(const char *goldenPath, const char *resultPath) {
     if (actual.correction[col]) correctionOnes.push_back(col);
 
   std::ofstream output(resultPath);
-  output << "{\n  \"status\":\"" << statusName(actual.status)
+  output << "{\n  \"status\":\"" << statusName(actual.status, config.prefixes.empty())
          << "\",\n  \"iterations\":" << actual.iterations
          << ",\n  \"eligible\":" << eligible << ",\n  \"selected\":" << actual.selected
          << ",\n  \"active_rows\":" << actual.activeRows << ",\n  \"timing_cycles\":{"
@@ -245,7 +256,7 @@ static int exactMain(const char *goldenPath, const char *resultPath) {
   writeArray(output, correctionOnes);
   output << "\n}\n";
   dut.final();
-  std::cout << "PASS: exact emitted BB144 RTL matched the BP/GF(2) golden; result: "
+  std::cout << "PASS: exact emitted BB144 RTL matched the independent golden; result: "
             << resultPath << '\n';
   return 0;
 }
@@ -274,6 +285,7 @@ static int benchmarkMain(
          "osd_output_cycles,osd_control_cycles,eligible,selected,active_rows,"
          "correction_weight,predicted_observables,actual_observables,logical_failure\n";
   Dut dut;
+  const bool bpOnly = config.prefixes.empty();
   int totalShots = 0;
   for (int point = 0; point < pCount; ++point) {
     double p;
@@ -291,11 +303,14 @@ static int benchmarkMain(
       const int eligible = std::count_if(frame.soft.begin(), frame.soft.end(),
         [&config](int value) { return std::abs(value) < config.threshold; });
       if (frame.status == 0 && frame.selected != 0) fail("BP result selected OSD columns");
-      if (frame.status != 0 && std::find(
+      if (!bpOnly && frame.status != 0 && std::find(
             config.prefixes.begin(), config.prefixes.end(), frame.selected) == config.prefixes.end())
         fail("selected count is not a configured OSD prefix");
+      if (bpOnly && frame.status != 0 && frame.status != 2)
+        fail("invalid BP-only status");
       if (frame.status == 3) fail("all-column ranking must not overflow");
-      const int expectedCount = frame.status == 0 ? n : frame.status == 1 ? frame.selected : 0;
+      const int expectedCount = bpOnly ? n :
+        frame.status == 0 ? n : frame.status == 1 ? frame.selected : 0;
       if (int(frame.stream.size()) != expectedCount) fail("unexpected correction stream length");
 
       uint32_t predicted = 0, observed = 0;
@@ -305,11 +320,12 @@ static int benchmarkMain(
         predicted |= uint32_t{parity} << logical;
         observed |= uint32_t{observedBits[logical] != 0} << logical;
       }
-      const bool success = frame.status == 0 || frame.status == 1;
+      const bool success = frame.status == 0 || (!bpOnly && frame.status == 1);
       const bool logicalFailure = !success || predicted != observed;
       const auto timing = breakdown(frame, n, eligible, config.prefixes);
       const int weight = std::count(frame.correction.begin(), frame.correction.end(), 1);
-      csv << std::setprecision(12) << p << ',' << shot << ',' << statusName(frame.status)
+      csv << std::setprecision(12) << p << ',' << shot << ','
+          << statusName(frame.status, bpOnly)
           << ',' << int(frame.status == 0) << ',' << frame.iterations << ',' << frame.cycles
           << ',' << timing.dispatch << ',' << timing.bp << ',' << timing.bpOutput
           << ',' << timing.sort << ',' << timing.solverRows << ',' << timing.solverMesh
@@ -334,8 +350,8 @@ int main(int argc, char **argv) {
   if (argc == 5 && std::string(argv[1]) == "--benchmark")
     return benchmarkMain(argv[2], argv[3], argv[4]);
   if (argc != 3) {
-    std::cerr << "usage: VBpFilteredOsd0Artifact <golden.txt> <result.json>\n"
-                 "   or: VBpFilteredOsd0Artifact --benchmark <input> <shots.csv> "
+    std::cerr << "usage: <simulator> <golden.txt> <result.json>\n"
+                 "   or: <simulator> --benchmark <input> <shots.csv> "
                  "<artifact-config>\n";
     return 2;
   }

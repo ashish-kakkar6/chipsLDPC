@@ -49,6 +49,9 @@ VERILATOR_JOBS=16 SIM_WORKERS=16 SHARD_SIZE=100 \
   build/generated/bb144-progressive-osd0 1000 64 128 256
 ```
 
+Run the paired [BP-only experiment](../BivariateBicycle144BpOnly/README.md) to
+compare against the same deterministic circuits and shots without OSD hardware.
+
 `P_VALUES` can override the default sweep without editing the script.
 
 The default output is `build/generated/bb144-progressive-osd0/`:
