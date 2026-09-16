@@ -41,16 +41,20 @@ private[chipsldpc] final class StaticVariableStage(config: VariableConfig) exten
   val io = IO(new Bundle {
     val load = Input(Bool())
     val enable = Input(Bool())
+    val restartMessages = Input(Bool())
     val input = Input(Vec(config.degree, new CheckMessage(config.q.magnitudeBits)))
     val priorIn = Input(UInt(config.q.magnitudeBits.W))
+    val bias = Input(SInt(config.q.accumulatorBits.W))
+    val prior = Output(UInt(config.q.magnitudeBits.W))
+    val next = Output(new VariableResult(config))
     val result = Output(new VariableResult(config))
   })
 
   private val priorIn = io.priorIn.pad(config.q.accumulatorBits).asSInt
-  private val prior = RegEnable(priorIn, io.load)
+  private val prior = RegEnable(io.priorIn, io.load)
   private val core = Module(new VariableNode(config))
   core.inputs := io.input
-  core.prior := prior
+  core.prior := io.bias
 
   private val state = Reg(new VariableResult(config))
   when(io.load) {
@@ -61,13 +65,24 @@ private[chipsldpc] final class StaticVariableStage(config: VariableConfig) exten
       message.magnitude := io.priorIn
     }
   }.elsewhen(io.enable) {
-    state := core.result
+    state.marginal := core.result.marginal
+    state.decision := core.result.decision
+    state.extrinsic.zip(core.result.extrinsic).foreach { case (message, next) =>
+      when(io.restartMessages) {
+        message.sign := false.B
+        message.magnitude := prior
+      }.otherwise {
+        message := next
+      }
+    }
   }
+  io.prior := prior
+  io.next := core.result
   io.result := state
 }
 
-/** One statically wired CNU cycle followed by one VNU cycle per iteration. */
-final class StaticTannerDatapath(
+/** Shared statically wired Tanner core: one CNU cycle, then one VNU cycle. */
+private[chipsldpc] final class StaticTannerCore(
     nodes: TannerNodeGraphs,
     q: Quantization = RelayDefaults.q,
     scale: CheckScale = RelayDefaults.scale,
@@ -78,6 +93,10 @@ final class StaticTannerDatapath(
   val io = IO(new Bundle {
     val load = Flipped(Decoupled(new StaticDecoderInput(graph.checkCount, graph.variableCount, q)))
     val step = Flipped(Decoupled(UInt(scale.controlBits.W)))
+    val bias = Input(Vec(graph.variableCount, SInt(q.accumulatorBits.W)))
+    val restartMessages = Input(Bool())
+    val prior = Output(Vec(graph.variableCount, SInt(q.accumulatorBits.W)))
+    val commit = Valid(new StaticDecoderResult(graph.checkCount, graph.variableCount, q))
     val result = Valid(new StaticDecoderResult(graph.checkCount, graph.variableCount, q))
   })
 
@@ -104,7 +123,9 @@ final class StaticTannerDatapath(
     stage.suggestName(s"vnu_${node.variableId}")
     stage.io.load := io.load.fire
     stage.io.enable := vnuPhase
+    stage.io.restartMessages := io.restartMessages
     stage.io.priorIn := io.load.bits.prior(node.variableId)
+    stage.io.bias := io.bias(node.variableId)
     stage
   }
 
@@ -117,15 +138,49 @@ final class StaticTannerDatapath(
     variable.input(edge.variablePort).useSecond := check.result.edges(edge.checkPort).useSecond
   }
 
-  private val convergence = Module(new ConvergenceChecker(graph))
-  convergence.estimate := VecInit(variables.map(_.io.result.decision))
-  convergence.syndrome := VecInit(checks.map(_.io.syndrome))
-
-  io.result.valid := resultValid
-  variables.zipWithIndex.foreach { case (variable, id) =>
-    io.result.bits.marginal(id) := variable.io.result.marginal
-    io.result.bits.decision(id) := variable.io.result.decision
+  private def connectVariables(output: StaticDecoderResult, values: Seq[VariableResult]): Unit = {
+    values.zipWithIndex.foreach { case (variable, id) =>
+      output.marginal(id) := variable.marginal
+      output.decision(id) := variable.decision
+    }
   }
-  io.result.bits.residual := convergence.residual
-  io.result.bits.converged := convergence.converged
+
+  variables.zipWithIndex.foreach { case (variable, id) =>
+    io.prior(id) := variable.io.prior.pad(q.accumulatorBits).asSInt
+  }
+  private val convergence = Module(new ConvergenceChecker(graph))
+  convergence.estimate := VecInit(variables.map(_.io.next.decision))
+  convergence.syndrome := VecInit(checks.map(_.io.syndrome))
+  io.commit.valid := vnuPhase
+  connectVariables(io.commit.bits, variables.map(_.io.next))
+  io.commit.bits.residual := convergence.residual
+  io.commit.bits.converged := convergence.converged
+
+  private val resultResidual = RegEnable(convergence.residual, vnuPhase)
+  private val resultConverged = RegEnable(convergence.converged, vnuPhase)
+  io.result.valid := resultValid
+  connectVariables(io.result.bits, variables.map(_.io.result))
+  io.result.bits.residual := resultResidual
+  io.result.bits.converged := resultConverged
+}
+
+/** Compatibility shell exposing the original manually stepped vanilla datapath. */
+final class StaticTannerDatapath(
+    nodes: TannerNodeGraphs,
+    q: Quantization = RelayDefaults.q,
+    scale: CheckScale = RelayDefaults.scale,
+) extends Module {
+  private val graph = nodes.graph
+  val io = IO(new Bundle {
+    val load = Flipped(Decoupled(new StaticDecoderInput(graph.checkCount, graph.variableCount, q)))
+    val step = Flipped(Decoupled(UInt(scale.controlBits.W)))
+    val result = Valid(new StaticDecoderResult(graph.checkCount, graph.variableCount, q))
+  })
+
+  private val core = Module(new StaticTannerCore(nodes, q, scale))
+  core.io.load <> io.load
+  core.io.step <> io.step
+  core.io.bias := core.io.prior
+  core.io.restartMessages := false.B
+  io.result := core.io.result
 }

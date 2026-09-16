@@ -10,22 +10,22 @@ an independent binary Gauss–Jordan mesh.
 - CNU exclusive sign, minimum selector, and either static Valls scaling or an
   iteration-controlled shift ramp.
 - VNU signed marginal, hard decision, extrinsic subtraction, and saturation.
-- Deterministic Relay memory bias with registered marginal feedback.
+- Separate autonomous `VanillaBpDecoder` and `RelayBpDecoder` controllers over
+  one statically wired Tanner core.
+- FPGA-paper Relay arithmetic with per-partial-product truncation, deterministic
+  per-VNU LFSR coefficients, persistent inter-leg marginals, and zero-bubble
+  message reinitialization.
 - A pure Scala Tanner graph with validated adjacency and stable row-major edge
   numbering; it introduces no runtime hardware.
 - Rooted check and variable views that map future CNU/VNU ports onto those
   global edges.
 - A graph-generated static datapath with one registered CNU cycle and one
   registered VNU cycle, checked against an independent Scala integer model.
-- A file-driven example that specializes the graph from sparse `H`, emits RTL,
-  and checks every fixed iteration of that exact artifact in Verilator.
-- A Stim-derived rotated-surface-code example for distances 3, 5, and 7 that
-  archives DEM priors and logical-observable rows separately from RTL.
-- A fixed 30-iteration surface-code profile that emits SystemVerilog only and
-  reports only soft outputs, corrections, convergence, and logical failure.
-- A pinned `[144,12,12]` bivariate-bicycle Z-check-sector experiment with one
-  all-column ranking and a 64-to-128-to-256 OSD-0 fallback ladder.
-- A paired BP-only BB144 sweep using the same shots, Verilator harness, and report.
+- A pinned `[144,12,12]` bivariate-bicycle Z-check-sector BP-only sweep with
+  deterministic shots, exact artifact checks, parallel Verilator simulation,
+  and explicit logical-failure and cycle reporting.
+- A modular Relay-BP implementation and BB144 Figure 7 parameter sweep that
+  reuse the BP-only experiment contract and report per-leg clocks.
 - A [parameterized binary Gauss–Jordan mesh](src/main/scala/chipsldpc/GaussJordan/README.md)
   assembled from reusable column and diagonal processing elements.
 - An autonomous BP/OSD-0 composition with optional filtering and scope, one
@@ -52,35 +52,39 @@ blocks satisfy `H_X = H_Z`, the same Tanner topology applies to either sector.
 - A correction bit is one exactly when its signed marginal is negative; zero
   maps to no correction.
 - Arithmetic widths and saturation points are explicit.
-- The Relay default is `Quantization(4, 7)` with `RampScale(4)`; its input and
-  memory scales remain the separate constants `S = 2` and `M = 8`.
+- Existing vanilla results remain locked to `Quantization(4, 7)`. The named
+  FPGA-paper Relay profile uses 4-bit magnitudes, 5-bit signed saturated
+  marginals, and 4-bit beta coefficients at memory scale `M = 8`.
+- Relay leg zero uses beta 7. Later legs advance one deterministic 16-bit
+  Galois LFSR per VNU to coefficients in `[3,10]`; every accepted frame reseeds.
+- Following Algorithm 1 and `trmue/relay`, the paper's `R=600` is represented
+  as 600 randomized legs after leg zero: at most 601 total legs and
+  `80 + 600 * 60 = 36,080` BP iterations.
+- The lower-level `RelayBpConfig.maximumLegs` field is the total hardware-leg
+  bound; the experiment profile performs the `R + 1` mapping explicitly.
+- A leg transition preserves saturated marginals, resets edge messages to the
+  immutable priors, and restarts the alpha schedule without a controller clock.
 
 ## Use
 
 Requirements are Java 17 or newer and Verilator. Mill is the only supported
-build interface and is included in the repository. The optional Stim examples
-use the repository-local Python environment created by `scripts/setup-stim.sh`.
+build interface and is included in the repository. The BB144 benchmark uses
+the repository-local Python environment created by `scripts/setup-bb144.sh`.
 
 ```sh
 ./scripts/test.sh
 ./scripts/emit.sh static-steane
 ./scripts/verify-rtl.sh build/generated/static-steane/StaticTannerDatapath.sv StaticTannerDatapath
-./examples/StaticTannerDatapath/run.sh
-./examples/EndToEnd/run.sh
-./scripts/setup-stim.sh
-./examples/RotatedSurfaceCode/run.sh 3
-./examples/RotatedSurfaceCode30/run.sh
 ./scripts/setup-bb144.sh
-./examples/BivariateBicycle144/run.sh
 ./examples/BivariateBicycle144BpOnly/run.sh
-./examples/BpFilteredOsd0/run.sh
+./examples/BivariateBicycle144RelayBp/run.sh
 ```
 
 The emission step writes inspectable FIRRTL-dialect MLIR and synthesizable
-SystemVerilog under `build/generated/<top>/`. Available example tops are:
+SystemVerilog under `build/generated/<top>/`. Available inspection tops are:
 
 ```text
-two-min  check-valls  check-relay  variable  relay-variable  relay-unit  iteration  convergence  static-steane  bp-filtered-osd0-steane  pe-col  pe-diag  trapezoid-mesh
+two-min  check-valls  check-relay  variable  iteration  convergence  static-steane  vanilla-steane  relay-steane  bp-filtered-osd0-steane  pe-col  pe-diag  trapezoid-mesh
 ```
 
 Focused tests can be run directly, for example:
@@ -90,6 +94,9 @@ Focused tests can be run directly, for example:
 ./mill chipsLDPC.test.testOnly chipsldpc.VariableNodeSpec
 ./mill chipsLDPC.test.testOnly chipsldpc.ConvergenceCheckerSpec
 ./mill chipsLDPC.test.testOnly chipsldpc.StaticTannerDatapathSpec
+./mill chipsLDPC.test.testOnly chipsldpc.BpDecodersSpec
+./mill chipsLDPC.test.testOnly chipsldpc.RelayBiasSpec
+./mill chipsLDPC.test.testOnly chipsldpc.RelayCoefficientsSpec
 ./mill chipsLDPC.test.testOnly chipsldpc.EndToEndSpec
 ./mill chipsLDPC.test.testOnly chipsldpc.graph.TannerGraphSpec
 ./mill chipsLDPC.test.testOnly chipsldpc.graph.TannerNodeGraphsSpec
@@ -98,29 +105,20 @@ Focused tests can be run directly, for example:
 ./mill chipsLDPC.test.testOnly chipsldpc.osd.BpFilteredOsd0Spec
 ```
 
-The Gauss–Jordan [PE](examples/GaussJordan/README.md) and
-[mesh](examples/GaussJordan/TrapezoidMesh/README.md) examples run focused tests
-and leave both MLIR and SystemVerilog artifacts ready for inspection.
-The [file-driven decoder example](examples/EndToEnd/README.md) records its
-validated input, golden trajectory, exact emitted RTL, and verified result.
-The [rotated-surface example](examples/RotatedSurfaceCode/README.md) derives
-that input and its logical-observable matrix from a Stim detector error model.
-The [fixed 30-iteration profile](examples/RotatedSurfaceCode30/README.md) emits
-only SystemVerilog and narrows each final result to four decoder outcomes.
-The [bivariate-bicycle experiment](examples/BivariateBicycle144/README.md)
-reconstructs the pinned Z-check circuit, emits the progressive BP/OSD artifact,
-and records 1000 shots at each `p=0.001,0.002,...,0.009` by default.
-Its [BP-only pair](examples/BivariateBicycle144BpOnly/README.md) reuses the same
-samples and report while omitting all sorter and OSD hardware.
-The [BP-filtered-OSD0 example](examples/BpFilteredOsd0/README.md) verifies the
-exact emitted hierarchy against independent BP and GF(2) software models.
+Runnable examples are deliberately restricted to the BB144 decoder comparison.
+The [BP-only flow](examples/BivariateBicycle144BpOnly/README.md) and
+[Relay-BP flow](examples/BivariateBicycle144RelayBp/README.md) share the
+physical experiment and reporting code in
+[`benchmarks/bb144`](benchmarks/bb144/README.md). Small structural checks stay
+in `src/test`, while `scripts/emit.sh` remains the direct way to inspect leaf
+MLIR and SystemVerilog without duplicating those checks as examples.
 
 ## Layout
 
 ```text
 src/main/scala/chipsldpc/  pure elaboration data, generator, and hardware
 src/test/scala/chipsldpc/  independent model and Verilator-backed tests
-examples/                  focused, inspectable generation flows
+examples/                  BB144 BP-only and Relay-BP experiment wrappers
 scripts/                   build, emit, and emitted-RTL checks
 paper/main.tex             evolving research manuscript
 ```

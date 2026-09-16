@@ -41,6 +41,7 @@ suppresses the mesh's debug-only full-state exports, avoiding quadratic debug
 wires in production RTL. Tests compare the exact vector with an independent
 GF(2) model; every two-column system through three rows is checked exhaustively.
 
-See the runnable [PE](../../../../../examples/GaussJordan/README.md) and
-[mesh](../../../../../examples/GaussJordan/TrapezoidMesh/README.md) examples
-for focused tests and inspectable MLIR/SystemVerilog emission.
+Run `GaussJordanPESpec`, `TrapezoidMeshSpec`, and `SystolicGf2SolverSpec` for
+focused checks. Use `scripts/emit.sh pe-col`, `scripts/emit.sh pe-diag`, or
+`scripts/emit.sh trapezoid-mesh` when an inspectable MLIR/SystemVerilog
+artifact is needed; separate example wrappers would duplicate those tests.

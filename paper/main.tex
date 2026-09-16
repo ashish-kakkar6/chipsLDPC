@@ -628,9 +628,6 @@ Specification or executable & Claim established \\
 \path{EndToEndSpec.scala} & Strict file-schema, graph-dimension, prior-range, syndrome, and iteration validation before elaboration. \\
 \path{GaussJordanPESpec.scala} & Opcode encodings, all PE transitions, synchronous reset, disabled hold, and combinational reduction forwarding. \\
 \path{TrapezoidMeshSpec.scala} & Configuration rejection, boundary behavior, an independent cycle oracle under deterministic and random traffic, row-major packing, hold/reset, and reduction delays one through three. \\
-\path{StaticGolden.scala} plus \path{sim_main.cpp} & The exact emitted static Steane SystemVerilog agrees with deterministic Scala golden records at every iteration. \\
-\path{EndToEnd.scala} plus \path{examples/EndToEnd/sim_main.cpp} & A file-defined static graph's exact emitted SystemVerilog agrees with the Scala trajectory before a final result is recorded. \\
-\path{RotatedSurfaceCode/run.sh} & Stim-derived distance-three, -five, and -seven graphs preserve DEM priors and logical rows and pass the exact artifact comparison. \\
 \bottomrule
 \end{tabular}
 \end{table*}
@@ -641,9 +638,9 @@ standalone lint script is a separate, weaker check: it establishes that a named
 emitted artifact is accepted by Verilator with the selected warnings, not that
 its values match the algorithm.
 
-\subsection{Exact emitted-SystemVerilog comparison}
-The example in \path{examples/StaticTannerDatapath/} closes the gap between
-testing a Chisel generator and testing the saved RTL file.  Its script performs
+\subsection{Retired exact emitted-SystemVerilog comparison}
+The retired exact-artifact harness closed the gap between testing a Chisel
+generator and testing the saved RTL file.  Its script performed
 four explicit stages:
 \begin{enumerate}
   \item emit the exact static Steane \texttt{.sv} artifact;
@@ -672,14 +669,14 @@ mismatch.  It is intentionally specialized to this three-check, seven-variable,
 five-bit stress artifact.  The following file-driven example uses a small
 packed ABI when a graph-independent behavioral transport is needed.
 
-The end-to-end script invokes Mill because it regenerates both RTL and golden
+The retired end-to-end script invoked Mill because it regenerated both RTL and golden
 records.  After generation, the behavioral consumer itself needs only the
 immutable SystemVerilog file, golden records, C++ harness, and Verilator.  The
-current CI runs the Scala/Chisel suite; the exact-artifact example is a separate
-manual acceptance command at this revision.
+current CI runs the Scala/Chisel suite; the retired exact-artifact result is
+retained here only as an implementation record.
 
-\subsection{File-driven decoder experiment}
-\path{examples/EndToEnd/problem.json} is a minimal experiment description with
+\subsection{Retired file-driven decoder experiment}
+The retired file-driven harness used a minimal experiment description with
 exactly six fields: schema version, column count $n$, sparse
 \texttt{row\_ones}, unsigned four-bit prior magnitudes, binary syndrome, and a
 positive fixed iteration count.  The row count $m$, column adjacency, stable
@@ -697,9 +694,9 @@ the least-significant packed fields, while arithmetic and scheduling remain in
 the production core.  Its stable desired name lets one graph-independent C++
 harness compile each specialized artifact without parsing generated names.
 
-The Verilator executable checks load and step readiness, result validity after
+The Verilator executable checked load and step readiness, result validity after
 each of the two phase edges, every signed marginal, every hard decision, every
-residual bit, and convergence for every requested iteration.  It writes
+residual bit, and convergence for every requested iteration.  It wrote
 \texttt{result.json} only after all comparisons pass.  That file records the
 verified final correction, quantized marginal, residual, and convergence.
 For presentation it also reports
@@ -711,13 +708,13 @@ not an exact posterior probability and not part of the bit-exact acceptance
 condition.  Failure to converge within the fixed budget is a valid result;
 only a malformed experiment or Scala/RTL disagreement fails the executable.
 
-\subsection{Stim rotated-surface-code experiment}
-\path{examples/RotatedSurfaceCode/} is a thin problem-source layer above the
-generic file-driven check.  Stim generates
+\subsection{Retired Stim rotated-surface-code experiment}
+The retired rotated-surface harness was a thin problem-source layer above the
+generic file-driven check.  Stim generated
 \texttt{surface\_code:rotated\_memory\_x} with rounds equal to distance and
-the four circuit-noise probabilities set to $0.05$.  The example supports
+the four circuit-noise probabilities set to $0.05$.  The harness supported
 $d\in\{3,5,7\}$ without adding Stim or Python to the production Chisel module.
-It archives the circuit, flattened decomposed detector error model (DEM), and
+It archived the circuit, flattened decomposed detector error model (DEM), and
 the exact Stim version beside each generated experiment.
 
 Each unique DEM error effect is one decoder variable.  Detector incidence
@@ -736,8 +733,8 @@ and saturated into the locked unsigned four-bit prior ABI; the generator
 rejects a probability outside $(0,0.5)$ because that ABI cannot encode a
 negative prior.
 
-Stim supplies one sampled syndrome and actual observable vector.  After the
-exact Scala/RTL comparison, the example evaluates
+Stim supplied one sampled syndrome and actual observable vector.  After the
+exact Scala/RTL comparison, the harness evaluated
 \begin{equation}
  \hat o=L\hat e\pmod 2.
 \end{equation}
@@ -770,9 +767,9 @@ $d$ & $m$ & $n$ & $E$ & SV MB & Emit s & Vlt s \\
 \end{tabular}
 \end{table}
 
-\subsection{SystemVerilog-only 30-iteration profile}
-\path{examples/RotatedSurfaceCode30/} fixes the three supported distances and
-an iteration budget of 30.  Its test-only entry point calls the production
+\subsection{Retired SystemVerilog-only 30-iteration profile}
+The retired profile fixed the three supported distances and an iteration
+budget of 30.  Its test-only entry point called the production
 generator through \texttt{Generate.emitSystemVerilog}; unlike the inspection
 flow, it does not request or write FIRRTL-dialect MLIR.  Each distance directory
 separates the emitted \texttt{rtl/StaticTannerArtifact.sv} from Stim provenance
@@ -788,8 +785,9 @@ bit-exact checks pass does a small reporting step retain four final fields:
 not a calibrated probability.  The last is true when the correction fails to
 clear the syndrome or when its logical parity differs from the sampled Stim
 observable.  Verification data remain available for audit without becoming
-reported decoder metrics.  Stim is isolated in the ignored repository-local
-\texttt{.venv}, reproducibly created by \path{scripts/setup-stim.sh}.
+reported decoder metrics.  Stim was isolated in the ignored repository-local
+\texttt{.venv}; the retired setup helper is no longer part of the maintained
+BB144 workflow.
 
 The deterministic default shot was run with Stim 1.16.0 and Verilator 5.048.
 All 30 states matched the Scala oracle at every distance.  The sample-specific
@@ -827,9 +825,11 @@ The maintained repository is deliberately shallow:
   \item \path{src/test/scala/chipsldpc/} contains independent arithmetic models,
         simulation harnesses, specifications, and golden-record generation;
   \item \path{scripts/} contains one concise action per script: test, emit,
-        lint an emitted RTL artifact, or create the isolated Stim environment;
-  \item \path{examples/} composes those actions into inspectable PE, mesh, and
-        exact static-decoder workflows;
+        lint an emitted RTL artifact, or create the BB144 Python environment;
+  \item \path{examples/} contains only the maintained BB144 BP-only flow and
+        the Relay-BP flow under construction;
+  \item \path{benchmarks/bb144/} contains their shared circuit, sampling,
+        Verilator transport, and reporting support;
   \item \path{build.mill}, the Mill wrapper, and \path{.mill-jvm-opts} define the
         reproducible build entry; and
   \item \path{paper/main.tex} is this evolving implementation record.
@@ -850,37 +850,24 @@ Emit and lint the static decoder as two separate steps:
 StaticTannerDatapath.sv \
   StaticTannerDatapath
 \end{verbatim}
-Run the exact emitted-artifact comparison:
+Optional leaf RTL inspection uses named emission targets rather than
+duplicating their focused tests as examples:
 \begin{verbatim}
-./examples/StaticTannerDatapath/run.sh
+./scripts/emit.sh pe-col
+./scripts/emit.sh pe-diag
+./scripts/emit.sh trapezoid-mesh
 \end{verbatim}
-Its optional arguments are prior-set count, iteration count, and seed.  Run the
-file-driven experiment:
+Run the maintained BB144 vanilla-BP benchmark with:
 \begin{verbatim}
-./examples/EndToEnd/run.sh
+./scripts/setup-bb144.sh
+./examples/BivariateBicycle144BpOnly/run.sh \
+  build/generated/bb144-bp-only 1000
 \end{verbatim}
-Its optional arguments replace the problem JSON and output directory.  Run a
-Stim-derived rotated-surface artifact, or all requested distances:
-\begin{verbatim}
-./scripts/setup-stim.sh
-./examples/RotatedSurfaceCode/run.sh 3
-cd examples/RotatedSurfaceCode
-for d in 3 5 7; do ./run.sh "$d"; done
-\end{verbatim}
-The optional second and third arguments select the output directory and fixed
-iteration count.  The fixed SystemVerilog-only, 30-iteration profile is
-\begin{verbatim}
-./examples/RotatedSurfaceCode30/run.sh
-\end{verbatim}
-Focused tests use Mill's \texttt{testOnly} target with the fully qualified
-specification name.  The Gauss--Jordan leaf and mesh examples are respectively
-\begin{verbatim}
-./examples/GaussJordan/run.sh
-cd examples/GaussJordan/TrapezoidMesh
-./run.sh
-\end{verbatim}
-Each leaves both \texttt{.fir.mlir} and \texttt{.sv} files under its named
-generated directory for inspection.
+The arguments select the output directory and shots per probability point.
+The Relay-BP example remains documentation-only until its wrapper, oracle
+comparison, and end-to-end smoke check share this benchmark contract.  Focused
+structure checks use Mill's \texttt{testOnly} target with the fully qualified
+specification name.
 
 When inspecting a new decoder change, the intended research loop is: change
 one pure configuration or leaf rule; extend the independent Scala oracle and

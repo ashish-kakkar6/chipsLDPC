@@ -6,10 +6,15 @@ final case class Quantization(magnitudeBits: Int, accumulatorBits: Int) {
 }
 
 object RelayDefaults {
+  /** Legacy accumulator profile used by the existing vanilla benchmarks. */
   val q = Quantization(4, 7)
   val scale: CheckScale = RampScale(q.magnitudeBits)
   val priorScale = 2
   val memoryScale = 8
+
+  /** Named FPGA-paper profile; kept separate so vanilla results do not drift. */
+  val paperQ = Quantization(4, 5)
+  val paperFormat = RelayFormat(betaBits = 4, fractionalBits = 3)
 }
 
 sealed trait CheckScale { def controlBits: Int = 1 }
@@ -32,5 +37,5 @@ final case class VariableConfig(degree: Int, q: Quantization) {
 }
 
 final case class RelayFormat(betaBits: Int, fractionalBits: Int) {
-  require(fractionalBits >= 0 && betaBits >= fractionalBits + 2)
+  require(fractionalBits >= 0 && betaBits > fractionalBits)
 }

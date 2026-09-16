@@ -3,11 +3,16 @@ package chipsldpc
 import org.scalatest.freespec.AnyFreeSpec
 
 final class ConfigSpec extends AnyFreeSpec {
-  "Relay defaults use four-bit messages and seven-bit marginals" in {
+  "legacy vanilla defaults remain unchanged" in {
     assert(RelayDefaults.q == Quantization(4, 7))
     assert(RelayDefaults.scale == RampScale(4))
     assert(RelayDefaults.priorScale == 2)
     assert(RelayDefaults.memoryScale == 8)
+  }
+
+  "the FPGA-paper Relay arithmetic profile is named independently" in {
+    assert(RelayDefaults.paperQ == Quantization(4, 5))
+    assert(RelayDefaults.paperFormat == RelayFormat(4, 3))
   }
 
   "LLR priors use the locked scale and saturate to four bits" in {

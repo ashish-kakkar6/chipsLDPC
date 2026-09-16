@@ -14,6 +14,17 @@ object Reference {
   }
   final case class VariableResult(marginal: Int, decision: Boolean, extrinsic: Seq[SignMag])
   final case class DecoderState(v2c: Vector[SignMag], marginal: Vector[Int], decision: Vector[Boolean])
+  final case class LegOutcome(iterations: Int, converged: Boolean)
+  final case class DecoderOutcome(
+      success: Boolean,
+      correction: Vector[Boolean],
+      state: DecoderState,
+      residual: Vector[Boolean],
+      iterations: Int,
+      legs: Int,
+      solutions: Int,
+      legOutcomes: Vector[LegOutcome],
+  )
 
   def twoMin(values: Seq[Int]): MinPair = {
     val sorted = values.sorted
@@ -62,11 +73,21 @@ object Reference {
     )
   }
 
-  def relayBias(prior: Int, previous: Int, beta: Int, format: RelayFormat, q: Quantization): Int = {
-    val scaledPrior = (BigInt(prior) * beta) >> format.fractionalBits
-    val scaledPrevious = (BigInt(previous) * beta) >> format.fractionalBits
-    clip((scaledPrior + previous - scaledPrevious).toInt, q.accumulatorBits)
+  def relayProduct(value: Int, beta: Int, format: RelayFormat, q: Quantization): Int = {
+    val magnitude = math.abs(value)
+    val product = (0 until q.accumulatorBits)
+      .filter(bit => ((magnitude >> bit) & 1) != 0)
+      .map(bit => (beta << bit) >> format.fractionalBits)
+      .sum
+    if (value < 0) -product else product
   }
+
+  def relayBias(prior: Int, previous: Int, beta: Int, format: RelayFormat, q: Quantization): Int =
+    clip(
+      relayProduct(prior, beta, format, q) + previous -
+        relayProduct(previous, beta, format, q),
+      q.accumulatorBits,
+    )
 
   def initialize(nodes: TannerNodeGraphs, priors: Seq[Int], q: Quantization): DecoderState = {
     require(priors.size == nodes.graph.variableCount)
@@ -82,7 +103,7 @@ object Reference {
       nodes: TannerNodeGraphs,
       state: DecoderState,
       syndrome: Seq[Boolean],
-      priors: Seq[Int],
+      biases: Seq[Int],
       control: Int,
       q: Quantization,
       scalePolicy: CheckScale,
@@ -102,7 +123,7 @@ object Reference {
         val result = checks(edge.checkId)
         CheckMessage(result.minima, result.edges(port).sign, result.edges(port).useSecond)
       }
-      variable(messages, priors(node.variableId), VariableConfig(node.degree, q))
+      variable(messages, biases(node.variableId), VariableConfig(node.degree, q))
     }
     val v2c = nodes.connections.map { edge =>
       variables(edge.variableId).extrinsic(edge.variablePort)
@@ -110,8 +131,116 @@ object Reference {
     DecoderState(v2c, variables.map(_.marginal), variables.map(_.decision))
   }
 
+  def relayIterate(
+      nodes: TannerNodeGraphs,
+      state: DecoderState,
+      syndrome: Seq[Boolean],
+      priors: Seq[Int],
+      beta: Seq[Int],
+      control: Int,
+      q: Quantization,
+      scalePolicy: CheckScale,
+      format: RelayFormat,
+  ): DecoderState = {
+    val biases = priors.indices.map { i => relayBias(priors(i), state.marginal(i), beta(i), format, q) }
+    iterate(nodes, state, syndrome, biases, control, q, scalePolicy)
+  }
+
   def residual(nodes: TannerNodeGraphs, state: DecoderState, syndrome: Seq[Boolean]): Vector[Boolean] =
     nodes.graph.rowOnes.zip(syndrome).map { case (row, bit) =>
       row.foldLeft(bit)((parity, variable) => parity ^ state.decision(variable))
     }
+
+  def runVanilla(
+      config: VanillaBpConfig,
+      priors: Vector[Int],
+      syndrome: Vector[Boolean],
+  ): DecoderOutcome = {
+    var state = initialize(config.nodes, priors, config.q)
+    var iteration = 0
+    var converged = false
+    while (iteration < config.iterations && !converged) {
+      iteration += 1
+      state = iterate(
+        config.nodes, state, syndrome, priors,
+        iteration.min((1 << config.scale.controlBits) - 1), config.q, config.scale,
+      )
+      converged = !residual(config.nodes, state, syndrome).contains(true)
+    }
+    DecoderOutcome(
+      converged, state.decision, state, residual(config.nodes, state, syndrome),
+      iteration, legs = 1, solutions = if (converged) 1 else 0,
+      legOutcomes = Vector(LegOutcome(iteration, converged)),
+    )
+  }
+
+  def runRelay(
+      config: RelayBpConfig,
+      priors: Vector[Int],
+      syndrome: Vector[Boolean],
+      beta: Vector[Vector[Int]],
+  ): DecoderOutcome = {
+    require(beta.size == config.maximumLegs && beta.forall(_.size == priors.size))
+    val initialMessages = initialize(config.nodes, priors, config.q).v2c
+    var state = initialize(config.nodes, priors, config.q)
+    var best = Option.empty[(Int, Vector[Boolean])]
+    var solutions = 0
+    var total = 0
+    var leg = 0
+    var done = false
+    val legOutcomes = Vector.newBuilder[LegOutcome]
+
+    while (!done) {
+      val limit = if (leg == 0) config.initialIterations else config.relayIterations
+      var local = 0
+      var legDone = false
+      var legConverged = false
+      while (!legDone) {
+        local += 1
+        total += 1
+        state = relayIterate(
+          config.nodes, state, syndrome, priors, beta(leg),
+          local.min((1 << config.scale.controlBits) - 1),
+          config.q, config.scale, config.format,
+        )
+        legConverged = !residual(config.nodes, state, syndrome).contains(true)
+        if (legConverged) {
+          solutions += 1
+          val score = priors.zip(state.decision).collect { case (prior, true) => prior }.sum
+          if (best.forall(score < _._1)) best = Some(score -> state.decision)
+        }
+        legDone = legConverged || local == limit
+      }
+      legOutcomes += LegOutcome(local, legConverged)
+
+      done = solutions >= config.solutionTarget || leg + 1 == config.maximumLegs
+      if (!done) {
+        state = state.copy(v2c = initialMessages)
+        leg += 1
+      }
+    }
+
+    val finalResidual = residual(config.nodes, state, syndrome)
+    DecoderOutcome(
+      solutions > 0, best.map(_._2).getOrElse(state.decision), state,
+      if (solutions > 0) Vector.fill(finalResidual.size)(false) else finalResidual,
+      total, leg + 1, solutions,
+      legOutcomes.result(),
+    )
+  }
+
+  def lfsrBeta(variableCount: Int, legs: Int, seedOffset: Int): Vector[Vector[Int]] = {
+    def seed(lane: Int): Int =
+      1 + ((BigInt(seedOffset) + BigInt(lane) * 32768) % 65535).toInt
+    def step(state: Int): Int =
+      (state >>> 1) ^ (if ((state & 1) != 0) 0xb400 else 0)
+    var states = Vector.tabulate(variableCount)(seed)
+    Vector.tabulate(legs) { leg =>
+      if (leg == 0) Vector.fill(variableCount)(7)
+      else {
+        states = states.map(step)
+        states.map(value => 3 + (value & 7))
+      }
+    }
+  }
 }

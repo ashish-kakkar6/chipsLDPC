@@ -52,7 +52,6 @@ object Generate {
   def main(args: Array[String]): Unit = {
     val q = RelayDefaults.q
     val variable = VariableConfig(3, q)
-    val relay = RelayFormat(6, 4)
     val steane = Codes.steane
     val steaneNodes = TannerNodeGraphs.from(steane)
     val target = args.headOption.getOrElse("iteration")
@@ -61,15 +60,17 @@ object Generate {
       case "check-valls"   => "CheckNode" -> (() => new CheckNode(CheckConfig(4, q, VallsScale(1, 2))))
       case "check-relay"   => "CheckNode" -> (() => new CheckNode(CheckConfig(4, q, RampScale(4))))
       case "variable"      => "VariableNode" -> (() => new VariableNode(variable))
-      case "relay-variable" =>
-        "RelayVariableNode" -> (() => new RelayVariableNode(variable, relay))
-      case "relay-unit" =>
-        "RelayVariableNodeUnit" -> (() => new RelayVariableNodeUnit(variable, relay))
       case "iteration" =>
         "MinSumIteration2x2" -> (() => new MinSumIteration2x2(q, VallsScale(1, 2)))
       case "convergence" => "ConvergenceChecker" -> (() => new ConvergenceChecker(steane))
       case "static-steane" =>
         "StaticTannerDatapath" -> (() => new StaticTannerDatapath(steaneNodes))
+      case "vanilla-steane" =>
+        "VanillaBpDecoder" -> (() => new VanillaBpDecoder(VanillaBpConfig(steaneNodes, 30)))
+      case "relay-steane" =>
+        "RelayBpDecoder" -> (() => new RelayBpDecoder(RelayBpConfig(
+          steaneNodes, maximumLegs = 4,
+        )))
       case "bp-filtered-osd0-steane" =>
         "BpFilteredOsd0" -> (() => new BpFilteredOsd0(BpFilteredOsd0Config(
           steaneNodes, iterations = 30, threshold = 1, prefixes = Seq(7),

@@ -45,6 +45,17 @@ object Arithmetic {
     reduce(values.map(_.pad(width)))
   }
 
+  def sumUnsigned(values: Seq[UInt], width: Int): UInt = {
+    require(values.nonEmpty)
+    def reduce(level: Seq[UInt]): UInt =
+      if (level.size == 1) level.head
+      else reduce(level.grouped(2).map {
+        case Seq(a, b) => a +% b
+        case Seq(a)    => a
+      }.toSeq)
+    reduce(values.map(_.pad(width)))
+  }
+
   private def clipUnsigned(value: UInt, bits: Int): UInt = {
     val width = value.getWidth
     val maximum = (BigInt(1) << bits) - 1

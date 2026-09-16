@@ -17,10 +17,10 @@ After producing the BB144 benchmark and Verilated artifact once, split it into
 
 ```sh
 python3 benchmarks/rtl_shards/adapters/chipsldpc.py \
-  build/generated/bb144-progressive-osd0/source/benchmark.txt \
-  build/generated/bb144-progressive-osd0/verification/obj_dir-k64-k128-k256/VBpFilteredOsd0Artifact \
-  build/generated/bb144-progressive-osd0/parallel --shard-size 100 \
-  --simulator-config build/generated/bb144-progressive-osd0/artifact/config.txt
+  build/generated/bb144-bp-only/source/benchmark.txt \
+  build/generated/bb144-bp-only/verification/obj_dir/VBpOnlyArtifact \
+  build/generated/bb144-bp-only/parallel --shard-size 100 \
+  --simulator-config build/generated/bb144-bp-only/artifact/config.txt
 ```
 
 `bb144.py prepare --shots 10000` means 10,000 shots **per** probability point;
@@ -30,12 +30,12 @@ Run, resume, validate, and merge without rebuilding RTL:
 
 ```sh
 python3 benchmarks/rtl_shards/workflow.py run \
-  build/generated/bb144-progressive-osd0/parallel/jobs.json -j 4
+  build/generated/bb144-bp-only/parallel/jobs.json -j 4
 python3 benchmarks/rtl_shards/workflow.py check \
-  build/generated/bb144-progressive-osd0/parallel/jobs.json
+  build/generated/bb144-bp-only/parallel/jobs.json
 python3 benchmarks/rtl_shards/workflow.py merge \
-  build/generated/bb144-progressive-osd0/parallel/jobs.json \
-  build/generated/bb144-progressive-osd0/raw/shots.csv
+  build/generated/bb144-bp-only/parallel/jobs.json \
+  build/generated/bb144-bp-only/raw/shots.csv
 ```
 
 Completed shards are checked and skipped. Failed runs cannot replace valid

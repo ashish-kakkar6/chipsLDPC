@@ -388,9 +388,9 @@ From the repository root, the current milestone is reproduced by
 ./scripts/test.sh
 ./scripts/emit.sh static-steane
 ./scripts/verify-rtl.sh build/generated/static-steane/StaticTannerDatapath.sv StaticTannerDatapath
-./examples/GaussJordan/run.sh
-cd examples/GaussJordan/TrapezoidMesh
-./run.sh
+./scripts/emit.sh pe-col
+./scripts/emit.sh pe-diag
+./scripts/emit.sh trapezoid-mesh
 \end{verbatim}
 Emission writes inspectable MLIR and SystemVerilog into the named build
 directory.  Focused tests may be run with Mill's \texttt{testOnly} target.

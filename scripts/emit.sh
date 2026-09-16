@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Emit FIRRTL-dialect MLIR and SystemVerilog for one named example top.
+# Emit FIRRTL-dialect MLIR and SystemVerilog for one named inspection top.
 set -euo pipefail
 top=${1:-iteration}
 out=${2:-build/generated/$top}
