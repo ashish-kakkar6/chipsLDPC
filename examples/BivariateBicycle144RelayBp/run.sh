@@ -6,18 +6,18 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)
 cd "$root"
 
 out=${1:-build/generated/bb144-relay-bp}
-shots=${2:-1000}
+shots=${2:-10000}
 python=${PYTHON:-.venv/bin/python3}
-jobs=${VERILATOR_JOBS:-4}
+jobs=${VERILATOR_JOBS:-16}
 groups=${VERILATOR_GROUPS:-16}
-workers=${SIM_WORKERS:-4}
+workers=${SIM_WORKERS:-16}
 shard_size=${SHARD_SIZE:-100}
 initial_iterations=${RELAY_T0:-80}
 relay_iterations=${RELAY_TR:-60}
 relay_legs=${RELAY_R:-600}
 solution_target=${RELAY_S:-5}
 seed_offset=${RELAY_SEED_OFFSET:-0}
-probabilities=${P_VALUES:-"0.001 0.002 0.003 0.004 0.005 0.006 0.007"}
+probabilities=${P_VALUES:-"0.0005 0.001 0.002 0.003 0.004 0.005"}
 read -r -a p_values <<< "$probabilities"
 
 positive() {
