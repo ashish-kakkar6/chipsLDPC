@@ -17,7 +17,7 @@ relay_iterations=${RELAY_TR:-60}
 relay_legs=${RELAY_R:-600}
 solution_target=${RELAY_S:-5}
 seed_offset=${RELAY_SEED_OFFSET:-0}
-probabilities=${P_VALUES:-"0.0005 0.001 0.002 0.003 0.004 0.005"}
+probabilities=${P_VALUES:-"0.001 0.002 0.003 0.004"}
 read -r -a p_values <<< "$probabilities"
 
 positive() {
