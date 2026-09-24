@@ -50,6 +50,7 @@ final class RelayLegTrace(legBits: Int, iterationBits: Int) extends Bundle {
 final class RelayBpDecoder(
     config: RelayBpConfig,
     coefficientFactory: Option[() => RelayCoefficientSource] = None,
+    runtimeLegLimit: Boolean = false,
 ) extends Module {
   val io = IO(new Bundle {
     val in = Flipped(Decoupled(new StaticDecoderInput(
@@ -61,10 +62,12 @@ final class RelayBpDecoder(
     ))
     val legTrace = Valid(new RelayLegTrace(config.legBits, config.localIterationBits))
   })
+  val legLimit = if (runtimeLegLimit) Some(IO(Input(UInt(config.legBits.W)))) else None
 
   private val sIdle :: sRun :: sOutput :: Nil = Enum(3)
   private val state = RegInit(sIdle)
   private val leg = RegInit(0.U(config.legBits.W))
+  private val frameLegLimit = RegInit(config.maximumLegs.U(config.legBits.W))
   private val localIteration = RegInit(0.U(config.localIterationBits.W))
   private val totalIterations = RegInit(0.U(config.iterationBits.W))
   private val solutions = RegInit(0.U(config.solutionBits.W))
@@ -112,7 +115,7 @@ final class RelayBpDecoder(
   private val legDone = core.io.commit.bits.converged || completedLocal === legBudget
   private val targetReached = core.io.commit.bits.converged &&
     nextSolutions >= config.solutionTarget.U
-  private val hasNextLeg = leg < (config.maximumLegs - 1).U
+  private val hasNextLeg = leg + 1.U < frameLegLimit
   private val advanceLeg = state === sRun && core.io.commit.valid && legDone &&
     hasNextLeg && !targetReached
 
@@ -130,6 +133,9 @@ final class RelayBpDecoder(
   io.out.bits := outcome
 
   when(io.in.fire) {
+    val requested = legLimit.getOrElse(config.maximumLegs.U(config.legBits.W))
+    assert(requested > 0.U && requested <= config.maximumLegs.U)
+    frameLegLimit := requested
     leg := 0.U
     localIteration := 0.U
     totalIterations := 0.U

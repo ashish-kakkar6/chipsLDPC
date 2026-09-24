@@ -136,6 +136,7 @@ final class BpOnlyArtifactSpec extends AnyFreeSpec with ChiselSim {
 
     simulate(new BpOnlyArtifact(problem)) { dut =>
       dut.inputValid.poke(false.B)
+      dut.iterationLimit.poke(problem.iterations.U)
       dut.scopeValid.poke(false.B)
       dut.scope.poke(0.U)
       dut.correctionReady.poke(true.B)
@@ -162,6 +163,7 @@ final class BpOnlyArtifactSpec extends AnyFreeSpec with ChiselSim {
 
     simulate(new BpOnlyArtifact(problem)) { dut =>
       dut.inputValid.poke(false.B)
+      dut.iterationLimit.poke(problem.iterations.U)
       dut.scopeValid.poke(false.B)
       dut.scope.poke(0.U)
       dut.correctionReady.poke(true.B)

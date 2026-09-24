@@ -2,34 +2,32 @@
 \usepackage{amsmath,amssymb,booktabs,array}
 \usepackage[hidelinks]{hyperref}
 
-\title{A Parametric Chisel Architecture for Fixed-Graph Quantum LDPC Min-Sum Decoders}
+\title{Fixed-Graph Vanilla and Relay Belief-Propagation Decoders in Chisel}
 \author{Anonymous Authors}
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
-This manuscript records the design, implementation, and validation of
-\texttt{chipsLDPC}, a compact Chisel/CIRCT research generator for fixed-graph
-quantum low-density parity-check decoder hardware.  The current artifact
-contains reusable min-sum check-node and variable-node datapaths, a pure Scala
-Tanner-graph elaborator, a graph-generated static Steane datapath, a
-combinational convergence checker, and an independent binary Gauss--Jordan
-mesh.  The decoder broadcasts one minimum pair per check and carries only
-per-edge sign and selector metadata.  One registered check phase followed by
-one registered variable phase implements each flooding-schedule iteration.
-Numeric width, sign, zero, tie, scaling, saturation, initialization, and
-handshake semantics are explicit.  Verification proceeds from independent
-integer reference functions through leaf and graph-level Chisel simulation to
-a standalone comparison of the exact CIRCT-emitted SystemVerilog artifact with
-deterministic Scala golden records.  A file-driven example performs this
-comparison for a sparse input matrix, quantized priors, syndrome, and fixed
-iteration count.  A Stim front end exercises the same path on rotated surface
-codes of distance three, five, and seven while retaining detector-model priors
-and logical observables.  This document is both a statement of the
-implemented research milestone and a guide to reading and extending its source.
-Timing, resource, power, and complete Relay-controller claims are intentionally
-deferred until an FPGA implementation flow is added.
+This manuscript records the current design, implementation, and validation of
+\texttt{chipsLDPC}, a Chisel/CIRCT generator for fixed-Tanner-graph quantum
+low-density parity-check decoders.  One shared statically wired min-sum core is
+controlled by two autonomous decoders: early-terminating vanilla BP and
+Relay-BP-S with persistent marginals, deterministic pseudorandom per-variable memory
+coefficients, zero-bubble leg transitions, and minimum-prior-score solution
+selection.  Every flooding iteration uses one registered check-node clock and
+one registered variable-node clock.  The maintained experiments specialize
+both decoders to the same reduced Z-check detector graph of the
+$[[144,12,12]]$ bivariate-bicycle memory circuit, compare the exact emitted
+SystemVerilog against an independent Scala golden model, execute deterministic
+shots in parallel Verilator shards, and report logical word failure and
+measured architecture clocks.  A runtime-budget meta-experiment reuses one
+maximum-capacity artifact and the same shot corpus to plot failure probability
+against mean executed iterations.  This document states the arithmetic,
+controller state, data-structure delta, cycle equations, simulator checks, and
+file-to-file workflow explicitly so that each reported quantity is traceable to
+an implementation symbol.  FPGA synthesis, placement, frequency, resource,
+power, and board-execution claims remain outside the current artifact.
 \end{abstract}
 
 \section{Research Objective and Current Boundary}
@@ -46,25 +44,31 @@ The implemented decoder milestone contains the following:
   \item reusable combinational CNU and VNU kernels;
   \item Valls-style constant shift-add scaling and Relay-style iteration-ramp
         scaling as elaboration-time CNU policies;
-  \item a deterministic memory-biased Relay VNU leaf and registered wrapper;
+  \item an FPGA-paper-style reduced Relay multiplier and deterministic
+        per-variable LFSR coefficient source;
   \item an elaboration-only Tanner graph and local node-port plan;
   \item a full static network with one CNU per row, one VNU per column, one
         fixed connection per nonzero of $H$, and a two-phase local scheduler;
-  \item a residual and convergence output;
-  \item a file-driven exact-RTL experiment with per-iteration golden checking;
-  \item a Stim-derived rotated-surface problem source for distances three,
-        five, and seven; and
+  \item an immediate-commit view, a registered result view, and a combinational
+        residual/convergence checker;
+  \item autonomous vanilla and Relay-BP controllers with optional per-frame
+        runtime limits and backpressured outputs;
+  \item two runnable, exact-RTL BB144 experiments sharing the same physical
+        samples, logical observables, sharding, and reporting path;
+  \item a runtime iteration-budget sweep over either emitted decoder; and
   \item a separate binary Gauss--Jordan component family for future
         post-processing experiments.
 \end{itemize}
-The static network currently instantiates the base min-sum VNU, with the locked
-Relay-oriented quantization and ramp scaling as defaults.  It does \emph{not}
-yet integrate the memory-biased Relay VNU.  A complete decoder controller,
-automatic early termination, Relay legs and coefficient generation, shot
-streaming or state banking, host interfaces, FPGA implementation, and board
-execution remain outside the implemented boundary.  The three control
-registers in the static network constitute only a local two-phase scheduler,
-not that future decoder controller.
+The shared static core instantiates the base min-sum VNU once.  Vanilla BP
+drives its bias input from the immutable prior; Relay BP computes a new bias
+from the immutable prior, the registered previous marginal, and a coefficient
+that is stable for one leg.  Thus Relay support is integrated without a second
+Tanner network or a duplicated VNU datapath.  The emitted benchmark artifacts
+are single-frame engines: they do not bank independent decoder states or overlap
+shots.  Host interfaces, FPGA implementation, and board execution remain
+outside the implemented boundary.  The independent Gauss--Jordan and filtered
+OSD-0 subsystems remain available but are not instantiated in either BP-only
+experiment artifact described here.
 
 \section{Algorithmic Background}
 Let $H\in\{0,1\}^{m\times n}$ be a parity-check matrix.  Check $i$ is adjacent
@@ -73,54 +77,109 @@ $\mathcal{M}(j)$.  The incoming variable-to-check message is $R_{i,j}$, the
 outgoing check-to-variable message is $\sigma_{i,j}$, and $S_i$ is a syndrome
 bit.  The syndrome-based min-sum check update is
 \begin{equation}
- \sigma_{i,j} =
- \left(
- S_i \oplus
+ \sigma_{i,j}^{(t)} =
+ (-1)^{S_i\oplus
  \bigoplus_{j'\in\mathcal{N}(i)\setminus j}
- \operatorname{sgn}(R_{i,j'})
- \right)
- \alpha
- \min_{j'\in\mathcal{N}(i)\setminus j}|R_{i,j'}|.
+ [R_{i,j'}^{(t-1)}<0]}
+ g_t\!\left(
+ \min_{j'\in\mathcal{N}(i)\setminus j}|R_{i,j'}^{(t-1)}|
+ \right).
  \label{eq:cnu}
 \end{equation}
 The variable update and marginal are
 \begin{align}
- R_{i,j} &= \Lambda_j+
- \sum_{i'\in\mathcal{M}(j)\setminus i}\sigma_{i',j},
+ R_{i,j}^{(t)} &= B_j^{(t)}+
+ \sum_{i'\in\mathcal{M}(j)\setminus i}\sigma_{i',j}^{(t)},
  \label{eq:vnu}\\
- M_j &= \Lambda_j+
- \sum_{i'\in\mathcal{M}(j)}\sigma_{i',j}.
+ M_j^{(t)} &= B_j^{(t)}+
+ \sum_{i'\in\mathcal{M}(j)}\sigma_{i',j}^{(t)}.
  \label{eq:marginal}
 \end{align}
 The hard decision is deliberately strict:
 \begin{equation}
- \operatorname{HD}(M_j)=
+ \hat e_j^{(t)}=\operatorname{HD}(M_j^{(t)})=
  \begin{cases}
-  1,&M_j<0,\\
-  0,&M_j\geq 0.
+  1,&M_j^{(t)}<0,\\
+  0,&M_j^{(t)}\geq 0.
  \end{cases}
  \label{eq:hard-decision}
 \end{equation}
 Thus a zero marginal means no correction.  The implementation takes this
-decision from the unsaturated working-width total.
-
-The memory-augmented VNU replaces the static prior by
+decision from the unsaturated working-width total and then saturates the stored
+marginal.  Vanilla BP uses
 \begin{equation}
- \Lambda_j(t)=(1-\gamma_j)\Lambda_j(0)+\gamma_jM_j(t-1).
+ B_j^{(t)}=\Lambda_j,
+ \qquad
+ R_{i,j}^{(0)}=+\Lambda_j,
+ \label{eq:vanilla-bias}
+\end{equation}
+where the benchmark prior $\Lambda_j$ is an unsigned quantized magnitude.
+For the ramp policy used by both maintained experiments, the corresponding
+real-valued scale factor is
+\begin{equation}
+ \alpha_t=
+ \begin{cases}
+  1-2^{-t},&1\leq t\leq w_m,\\
+  1,&t>w_m,
+ \end{cases}
+ \label{eq:ramp-alpha}
+\end{equation}
+The exact unsigned-integer operation used in Eq.~\eqref{eq:cnu} is
+\begin{equation}
+ g_t(x)=
+ \begin{cases}
+  x-\left\lfloor x/2^t\right\rfloor,&1\leq t\leq w_m,\\
+  x,&t>w_m,
+ \end{cases}
+ \label{eq:ramp-integer}
+\end{equation}
+which is also $x-(x\mathbin{\texttt{>>}}t)$ in the Chisel implementation.
+
+Relay BP replaces the static VNU bias by a memory mixture.  For Relay leg
+$\ell$, local iteration $t$, coefficient
+$\bar\beta_{\ell,j}=b_{\ell,j}/2^f$, and
+$\gamma_{\ell,j}=1-\bar\beta_{\ell,j}$, the ideal equation is
+\begin{equation}
+ B_j^{(\ell,t)}=
+ \bar\beta_{\ell,j}\Lambda_j+
+ (1-\bar\beta_{\ell,j})M_j^{(\ell,t-1)}.
  \label{eq:memory}
 \end{equation}
-With $\beta_j=1-\gamma_j$, the implemented exact fixed-point baseline is
+The hardware deliberately uses a reduced partial-product calculation.  Define
+$x_r^+$ as bit $r$ of the unsigned magnitude $|x|$ and define the restored sign
+$\epsilon(x)$ by
+\begin{align}
+ |x|&=\sum_{r=0}^{w_a-1}x_r^+2^r,\\
+ \epsilon(x)&=\begin{cases}-1,&x<0,\\+1,&x\geq0,\end{cases}\\
+ \rho_f(x,b)&=\epsilon(x)\sum_{r=0}^{w_a-1}x_r^+
+ \left\lfloor\frac{b2^r}{2^f}\right\rfloor.
+ \label{eq:reduced-product}
+\end{align}
+The implemented Relay bias is then
 \begin{equation}
- \Lambda_j(t)=\beta_j\Lambda_j(0)+M_j(t-1)-\beta_jM_j(t-1).
- \label{eq:beta}
+ \begin{split}
+ B_j^{(\ell,t)}=\operatorname{sat}_{w_a}\big(&
+ \rho_f(\Lambda_j,b_{\ell,j})+M_j^{(\ell,t-1)}\\
+ &-\rho_f(M_j^{(\ell,t-1)},b_{\ell,j})\big),
+ \end{split}
+ \label{eq:relay-bias}
 \end{equation}
-Coefficient generation remains external to the leaf module.
+where every selected partial product is right-shift-truncated before the sum;
+this is not a full product followed by one truncation.  Here
+\begin{equation}
+ \operatorname{sat}_{w}(x)=
+ \min\!\left(2^{w-1}-1,\max(-2^{w-1},x)\right).
+ \label{eq:saturation}
+\end{equation}
+The first state after load has $M_j^{(0,0)}=\Lambda_j$.  At a Relay leg
+boundary the newly computed saturated marginal is retained while every
+$R_{i,j}$ is synchronously restored to $+\Lambda_j$.
 
 Convergence is a separate binary computation.  For hard-decision vector
 $\hat e$, the residual is
 \begin{equation}
- r=H\hat e\oplus S,
- \qquad \text{converged}\iff \bigvee_i r_i=0.
+ r_i^{(t)}=S_i\oplus\bigoplus_{j:H_{i,j}=1}\hat e_j^{(t)},
+ \qquad \text{converged}\iff \left(\bigvee_i r_i^{(t)}\right)=0.
  \label{eq:residual}
 \end{equation}
 
@@ -178,13 +237,16 @@ Step & Source & Read for & Then inspect \\
 4 & \path{Protocol.scala} & Hardware bundles crossing arithmetic and phase boundaries. & \texttt{CheckResult} versus the wire-view \texttt{CheckMessage}. \\
 5 & \path{Arithmetic.scala} & Canonical sign, conversion, balanced sums, explicit widths, clipping, and scale policies. & Operators that expand or retain width and the elaboration/runtime split in \texttt{scale}. \\
 6 & \path{TwoMin.scala} and \path{CheckNode.scala} & Balanced first/second minimum, shared parity, scaling, and compressed broadcast metadata. & Why equality selects the second minimum and why duplicates remain valid. \\
-7 & \path{VariableNode.scala} & Selection, sign--magnitude conversion, one shared total, total-minus-own messages, and Relay bias. & \texttt{VariableLogic}, then the thin base, Relay, and registered wrappers. \\
+7 & \path{VariableNode.scala} & Selection, sign--magnitude conversion, one shared total, and total-minus-own messages. & \texttt{VariableLogic.apply} and \texttt{VariableLogic.connect}. \\
 8 & \path{ConvergenceChecker.scala} & Combinational $H\hat e\oplus S$ specialized from the Scala graph. & Native XOR and OR reductions. \\
-9 & \path{StaticTannerDatapath.scala} & Full graph elaboration, load initialization, static edge wiring, CNU/VNU registers, and handshake timing. & The three control registers, then the single \texttt{connections.foreach}. \\
-10 & \path{Iteration.scala} & A smaller legacy $2\times2$ wiring and latency example. & Treat it as a teaching top, not the generic graph implementation. \\
-11 & \path{Generate.scala} & Named top selection and deterministic MLIR/SystemVerilog emission. & The target match and CIRCT options. \\
-12 & \path{GaussJordan/} & Independent one-bit post-processing PEs and their structural mesh. & Opcode/state semantics before mesh composition. \\
-13 & \path{src/test/scala/chipsldpc/} and \path{examples/} & Executable semantics, cycle contracts, and exact emitted-artifact checks. & Read \texttt{Reference}, then \texttt{EndToEnd}, before each corresponding executable. \\
+9 & \path{StaticTannerDatapath.scala} & Full graph elaboration, load initialization, static edge wiring, immediate commit, registered result, and message restart. & \texttt{StaticVariableStage}, then \texttt{StaticTannerCore}. \\
+10 & \path{BpDecoder.scala} & Common result bundle and the vanilla BP state machine. & \texttt{VanillaBpConfig}, \texttt{BpDecoderResult}, then \texttt{VanillaBpDecoder}. \\
+11 & \path{RelayBias.scala}, \path{RelayCoefficients.scala}, and \path{RelayBpDecoder.scala} & Reduced products, LFSR coefficients, Relay state, leg transitions, and solution selection. & \texttt{RelayBias.reducedMultiply}, \texttt{LfsrRelayCoefficients}, then \texttt{RelayBpDecoder}. \\
+12 & \path{Reference.scala} & Independent integer equations and complete vanilla/Relay runs. & \texttt{runVanilla}, \texttt{runRelay}, and \texttt{lfsrBeta}. \\
+13 & \path{BpOnlyExperiment.scala} and \path{RelayBpExperiment.scala} & Packed artifact wrappers, golden records, runtime limits, and RTL emission. & The artifact class before the executable object. \\
+14 & \path{benchmarks/bb144/sim_main.cpp} & Exact-golden and many-shot modes, sparse reconstruction, timing assertions, and logical classification. & \texttt{decode}, \texttt{exactMain}, then \texttt{benchmarkMain}. \\
+15 & \path{examples/} and \path{benchmarks/rtl_shards/} & End-to-end commands, hashed shard manifests, merge rules, and reports. & Each \texttt{run.sh}, then the adapter, workflow, and report. \\
+16 & \path{Generate.scala} and \path{GaussJordan/} & Inspection tops and independent one-bit post-processing PEs. & Treat these as emission support and a separate subsystem. \\
 \bottomrule
 \end{tabular}
 \end{table*}
@@ -195,19 +257,21 @@ Step & Source & Read for & Then inspect \\
 $w_a$, requiring $w_a\geq w_m+1$.  \texttt{CheckConfig} adds check degree and
 a \texttt{CheckScale}; checks require degree at least two.
 \texttt{VariableConfig} accepts positive degree and derives a working width.
-\texttt{RelayFormat} describes an unsigned fixed-point $\beta$ port and
-requires at least two integer-side bits beyond its fractional field.
-
-The locked defaults are
-\begin{equation}
- (w_m,w_a)=(4,5),\quad
- \texttt{RampScale}(4),\quad S=2,\quad M=8.
-\end{equation}
-The first pair and ramp policy are used by the default static datapath.  The
-constants $S$ and $M$ are recorded and tested for Relay-oriented experiments;
-they are not an implicit conversion performed inside every hardware module.
-The generated Relay leaf example separately uses
-\texttt{RelayFormat(6,4)}.
+\texttt{RelayFormat} describes an unsigned fixed-point integer coefficient
+$b$ with $f$ fractional bits and requires \texttt{betaBits}$>f$.
+The two maintained experiment profiles are deliberately distinct:
+\begin{align}
+ (w_m,w_a)_{\mathrm{vanilla}}&=(4,7),
+ &\texttt{scale}&=\texttt{RampScale}(4),\label{eq:vanilla-format}\\
+ (w_m,w_a)_{\mathrm{Relay}}&=(4,5),
+ &(w_b,f,M)&=(4,3,8).\label{eq:relay-format}
+\end{align}
+Here $M=2^f=8$ and $b/M$ represents $\bar\beta$.  The Python problem source
+uses the separate prior-quantization scale $S_\Lambda=2$.  These values are
+defined by \texttt{RelayDefaults.q}, \texttt{paperQ}, \texttt{paperFormat},
+\texttt{priorScale}, and \texttt{memoryScale} in \path{Config.scala}.  Keeping
+the seven-bit vanilla accumulator separate prevents the established vanilla
+experiment from changing when the five-bit Relay paper profile is selected.
 
 \subsection{One canonical graph source}
 The factory \texttt{TannerGraph.fromRows} is the only constructor for the
@@ -393,21 +457,15 @@ accepts an unsigned $w_m$-bit LLR magnitude and zero-extends it, matching the
 present independent-error examples with $p<1/2$.  There is no hidden hard-coded
 $+1$ prior in the generator.
 
-\subsection{Relay memory leaf}
-\texttt{RelayBiasLogic} evaluates Eq.~\eqref{eq:beta} with two exact signed
-products.  It prefixes the unsigned coefficient with zero, shifts each product
-by \texttt{fractionalBits}, combines the expanded intermediates, and clips once
-to $w_a$.  \texttt{RelayVariableNode} feeds that bias into the same
-\texttt{VariableLogic}; it does not duplicate the message datapath.
-
-\texttt{RelayVariableNodeUnit} adds a registered previous marginal and result.
-On an \texttt{initialize} event, the prior substitutes for the previous
-marginal, making the first valid update independent of stale state.  A valid
-update captures the new saturated marginal.  Initialization without valid sets
-the retained state to the prior.  The current implementation is an exact
-fixed-point baseline: the paper-specific reduced-logic multiplier, randomized
-coefficient source, Relay legs, and graph-level Relay integration are not yet
-implemented.
+\subsection{Relay bias as a core input}
+Relay arithmetic is composed around the base VNU rather than implemented as a
+second node class.  \texttt{RelayBias.reducedMultiply} in
+\path{RelayBias.scala} implements Eq.~\eqref{eq:reduced-product};
+\texttt{RelayBias.apply} forms Eq.~\eqref{eq:relay-bias} and performs the final
+five-bit signed saturation.  \texttt{RelayBpDecoder} applies this function once
+per variable and drives the resulting vector into \texttt{core.io.bias}.
+Consequently \texttt{VariableLogic} and every Tanner-edge bundle are identical
+between vanilla and Relay BP.
 
 The base VNU combinational path is
 \begin{equation}
@@ -425,18 +483,24 @@ constructor.  Elaboration specializes one native XOR reduction per row of
 $H$.  At runtime it XORs each parity with the loaded syndrome to produce the
 residual in Eq.~\eqref{eq:residual}; one OR reduction followed by negation
 produces \texttt{converged}.  The block is a combinational \texttt{RawModule}:
-it owns neither state nor a stop policy.  In the static top it observes the
-registered VNU decisions and registered syndrome.  A future controller may
-consume its output, but the present local scheduler does not terminate
-iterations automatically.
+it owns neither state nor a stop policy.  In \texttt{StaticTannerCore} it
+observes the combinational next VNU decisions and the registered syndrome.
+The core presents the checker in
+two forms: \texttt{commit} evaluates the combinational next VNU decisions on
+the terminal VNU cycle, whereas \texttt{result} presents the same information
+from registers on the following cycle.  Autonomous controllers use
+\texttt{commit} to decide without adding a control bubble; the manually stepped
+compatibility shell exports \texttt{result}.
 
 \section{Graph-Generated Static Datapath}
 \subsection{Constructor and hierarchy}
-\texttt{StaticTannerDatapath(nodes,q,scale)} receives a fully validated
+\texttt{StaticTannerCore(nodes,q,scale)} receives a fully validated
 \texttt{TannerNodeGraphs} plan; it does not recompute graph topology internally.
 The default arguments are \texttt{Quantization(4,7)} and
 \texttt{RampScale(4)}.  It rejects any check degree below two when elaborating
-the min-sum network.
+the min-sum network.  \texttt{StaticTannerDatapath} is a compatibility shell
+that ties \texttt{bias=prior}, disables message restart, and exposes the older
+manual load/step/result interface.
 
 Scala \texttt{map} calls instantiate one \texttt{StaticCheckStage} for every
 check and one \texttt{StaticVariableStage} for every variable.  Suggested names
@@ -452,27 +516,35 @@ One traversal of \texttt{nodes.connections} performs all graph wiring:
 There is no runtime crossbar, adjacency memory, node-ID decoder, or graph
 configuration bus.  A different $H$ produces a different specialized artifact.
 
-\subsection{External protocol}
-The top-level IO contains:
+\subsection{Core protocol}
+The shared core IO contains:
 \begin{itemize}
   \item a flipped \texttt{Decoupled} \texttt{load} channel carrying $m$
         syndrome bits and $n$ unsigned priors;
   \item a flipped \texttt{Decoupled} \texttt{step} channel carrying the scale
         control; and
-  \item a \texttt{Valid} result carrying $n$ marginals, $n$ decisions, $m$
-        residual bits, and \texttt{converged}.
+  \item a signed bias vector and a \texttt{restartMessages} control;
+  \item the registered immutable prior vector;
+  \item an immediate \texttt{commit} carrying the next $n$ marginals and
+        decisions, $m$ residual bits, and \texttt{converged}; and
+  \item a registered \texttt{result} with the same payload.
 \end{itemize}
 A \texttt{load.fire} event stores every syndrome and prior, sets each initial
 marginal to the prior, sets every initial decision to false, and initializes
 every variable-to-check edge to positive sign and that variable's prior
-magnitude.  Reloading is supported when the VNU phase is not active.
+magnitude.  Reloading is supported when the VNU phase is not active.  On an
+enabled VNU edge, \texttt{restartMessages=false} stores the computed extrinsic
+messages.  If it is true, the stage still stores the newly computed marginal
+and decision but replaces every extrinsic message by the positive immutable
+prior.  This selective assignment in \texttt{StaticVariableStage} is the entire
+datapath mechanism required for a Relay leg transition.
 
 The top gives load priority: \texttt{step.ready} requires a prior successful
 load, no active VNU phase, and no asserted \texttt{load.valid}.  Therefore a
 step cannot consume uninitialized datapath state, and an asserted load cannot
-silently race a step.  \texttt{result} uses \texttt{Valid}, not
-\texttt{Decoupled}; the consumer observes a pulse and cannot back-pressure the
-fixed two-phase datapath.
+silently race a step.  Both result views use \texttt{Valid}, not
+\texttt{Decoupled}; backpressure is handled only at the enclosing autonomous
+decoder's frame output.
 
 \subsection{Two-cycle iteration}
 Only three control registers are reset: \texttt{loaded}, \texttt{vnuPhase}, and
@@ -480,19 +552,178 @@ Only three control registers are reset: \texttt{loaded}, \texttt{vnuPhase}, and
 \begin{enumerate}
   \item On a \texttt{step.fire} edge, every CNU stage captures its result from
         the current V2C state.  \texttt{result.valid} remains low.
-  \item On the next edge, every VNU stage captures its new result from the CNU
-        registers.  \texttt{result.valid} becomes high for the following cycle,
-        and the new marginals, decisions, residual, and convergence flag are
-        observable.
+  \item During the next cycle, \texttt{commit.valid} is high and its payload is
+        the next VNU result computed from the CNU registers.  On the closing
+        edge, every VNU stage captures that result.  The controller may also
+        stop, advance a Relay leg, or launch sparse output from this commit.
+  \item \texttt{result.valid} is high in the following cycle and presents the
+        registered marginals, decisions, residual, and convergence flag.
   \item During that result cycle, \texttt{step.ready} is high again, so a new
         CNU phase may be accepted at the next edge.
 \end{enumerate}
 The node-update latency and initiation interval are therefore two cycles per
 iteration.  Wide syndrome, CNU-result, prior, and VNU-state registers are not
 reset.  Their enabling protocol guarantees they are written before use; this
-is intentional and is tested at the external interface.
+is intentional and is tested at the external interface.  Controller-visible BP
+latency is therefore exactly
+\begin{equation}
+ C_{\mathrm{BP}}=2I,
+ \label{eq:bp-clocks}
+\end{equation}
+for $I$ executed iterations; there is no extra iteration-control clock.
 
-\subsection{Legacy \texorpdfstring{$2\times2$}{2 x 2} teaching top}
+\section{Autonomous Decoder Implementations}
+\subsection{Common input and output records}
+\texttt{StaticDecoderInput} in \path{StaticTannerDatapath.scala} carries the
+runtime syndrome and unsigned prior vector.  \texttt{BpDecoderResult} in
+\path{BpDecoder.scala} is shared by both autonomous controllers and contains
+\texttt{success}, selected \texttt{correction}, final \texttt{marginal},
+reported \texttt{residual}, \texttt{totalIterations}, \texttt{legsExecuted},
+and \texttt{solutionsFound}.  Both controllers use a three-state
+\texttt{sIdle}/\texttt{sRun}/\texttt{sOutput} machine and a
+\texttt{Decoupled} frame output.  Once in \texttt{sOutput}, the registered
+result remains stable until \texttt{io.out.fire}; output backpressure therefore
+cannot modify decoder state.
+
+\subsection{Vanilla BP controller}
+\texttt{VanillaBpConfig} stores the node plan, elaborated iteration capacity
+$T_{\max}$, quantization, and scale policy.  Its counter width is
+\begin{equation}
+ w_I=\max\!\left(1,\left\lceil\log_2(T_{\max}+1)\right\rceil\right).
+ \label{eq:vanilla-counter-width}
+\end{equation}
+\texttt{VanillaBpDecoder} loads one frame, drives
+\texttt{core.io.bias=core.io.prior}, holds
+\texttt{restartMessages=false}, and asserts \texttt{step.valid} throughout
+\texttt{sRun}.  For completed iteration $t$, it drives the ramp control
+\begin{equation}
+ u_t=\min(t,2^{w_u}-1),
+ \label{eq:scale-control}
+\end{equation}
+where $w_u$ is \texttt{scale.controlBits}.  On every \texttt{core.io.commit},
+it evaluates
+\begin{equation}
+ \operatorname{stop}_{\mathrm{BP}}(t)=
+ \operatorname{converged}(t)\lor[t=T_{\mathrm{frame}}].
+ \label{eq:vanilla-stop}
+\end{equation}
+The terminal commit is copied to the common result; success and
+\texttt{solutionsFound} are one exactly when it converged, and
+\texttt{legsExecuted}=1.  If \texttt{runtimeIterationLimit=true}, a separate
+\texttt{iterationLimit} port supplies $T_{\mathrm{frame}}$ for each accepted
+frame subject to $1\leq T_{\mathrm{frame}}\leq T_{\max}$; otherwise the
+elaborated capacity is used.  The implementation is in
+\texttt{VanillaBpDecoder} in \path{BpDecoder.scala}; the independent executable
+equation is \texttt{Reference.runVanilla} in \path{Reference.scala}.
+
+\subsection{Relay coefficient generation}
+\texttt{RelayCoefficientSource} in \path{RelayCoefficients.scala} defines a
+replaceable source with \texttt{frameStart}, \texttt{advanceLeg}, and one
+$b_{\ell,j}$ output per variable.  The production
+\texttt{LfsrRelayCoefficients} uses one 16-bit Galois LFSR per variable.  Lane
+$j$ is initialized on every frame to
+\begin{equation}
+ s_{0,j}=1+\left((o+32768j)\bmod 65535\right),
+ \label{eq:lfsr-seed}
+\end{equation}
+where $o$ is \texttt{seedOffset}.  Leg zero uses $b_{0,j}=7$ without consuming
+an LFSR word.  At each later-leg transition,
+\begin{align}
+ s_{\ell,j}&=(s_{\ell-1,j}\mathbin{\texttt{>>}}1)
+ \oplus\begin{cases}
+ \mathtt{0xB400},&s_{\ell-1,j}[0]=1,\\
+ 0,&s_{\ell-1,j}[0]=0,
+ \end{cases}\label{eq:lfsr-step}\\
+ b_{\ell,j}&=3+(s_{\ell,j}\mathbin{\&}7),
+ \qquad \ell\geq1.\label{eq:lfsr-beta}
+\end{align}
+Thus later legs use $b\in[3,10]$, or effective
+$\gamma=1-b/8\in[-0.25,0.625]$.  Coefficients remain constant inside a leg and
+the complete sequence repeats across frames by design.  The independent Scala
+implementation is \texttt{Reference.lfsrBeta}.
+
+\subsection{Relay-BP controller}
+\texttt{RelayBpConfig} in \path{RelayBpDecoder.scala} adds initial-leg budget
+$T_0$, later-leg budget $T_r$, total hardware-leg capacity $L_{\max}$,
+solution target $S$, seed offset, and Relay format.  Its maximum possible
+iteration count is
+\begin{equation}
+ I_{\max}=T_0+(L_{\max}-1)T_r.
+ \label{eq:relay-maximum-iterations}
+\end{equation}
+The derived counter widths are the positive bit lengths of $I_{\max}$,
+$\max(T_0,T_r)$, $L_{\max}$, and $S$.  The solution-score width is the positive
+bit length of
+\begin{equation}
+ Q_{\max}=n(2^{w_m}-1).
+ \label{eq:score-width}
+\end{equation}
+
+\texttt{RelayBpDecoder} instantiates the same \texttt{StaticTannerCore} as
+vanilla BP, one coefficient source, and Eq.~\eqref{eq:relay-bias} for every
+variable.  A leg stops on its first syndrome-consistent commit or at its local
+budget:
+\begin{equation}
+ \operatorname{stop}_{\ell}(t)=
+ \operatorname{converged}_{\ell}(t)\lor
+ \begin{cases}
+ [t=T_0],&\ell=0,\\
+ [t=T_r],&\ell>0.
+ \end{cases}
+ \label{eq:relay-leg-stop}
+\end{equation}
+Every converged leg increments the solution count, including a duplicate
+solution.  A converged candidate is ranked by
+\begin{equation}
+ Q(\hat e)=\sum_{j=0}^{n-1}\Lambda_j\hat e_j.
+ \label{eq:relay-score}
+\end{equation}
+The candidate replaces the stored best solution only when its score is
+strictly smaller, so an equal-score tie retains the earliest solution.  The
+decoder stops when the updated solution count reaches $S$ or when no configured
+leg remains.  Otherwise, on the terminal VNU edge, \texttt{advanceLeg} both
+advances the coefficients and asserts \texttt{restartMessages}.  The marginal
+and decision from that commit are retained, V2C messages return to the immutable
+priors, the local iteration counter becomes zero, and Eq.~\eqref{eq:ramp-alpha}
+restarts at $t=1$ on the next CNU clock.  Hence a leg transition consumes zero
+additional clocks.
+
+On success, \texttt{correction} is the best converged candidate and the
+reported residual is forced to zero because that candidate was checked when it
+was recorded.  \texttt{marginal} remains the final executed leg's soft state,
+which is the intended handoff to a later post-processor.  On total failure,
+correction, marginal, and residual are one coherent snapshot of the last
+commit.  Optional \texttt{runtimeLegLimit} adds a per-frame bound
+$1\leq L_{\mathrm{frame}}\leq L_{\max}$ without re-elaboration.
+\texttt{RelayLegTrace} emits the zero-based leg index, executed local
+iterations, and convergence flag on every terminal commit; it is nonblocking.
+
+\subsection{Data-structure delta from vanilla to Relay BP}
+Table~\ref{tab:relay-delta} lists the additions needed to transform the vanilla
+controller into Relay BP.  The Tanner graph, static connections, CNU/VNU
+payloads, arithmetic leaf, and two-clock schedule are unchanged.
+
+\begin{table*}[t]
+\caption{Concrete additions from vanilla BP to Relay BP.}
+\label{tab:relay-delta}
+\centering
+\scriptsize
+\begin{tabular}{@{}p{0.18\textwidth}p{0.34\textwidth}p{0.40\textwidth}@{}}
+\toprule
+Concern & Vanilla representation & Relay addition and source symbol \\
+\midrule
+Configuration & \texttt{VanillaBpConfig}: nodes, $T_{\max}$, $q$, scale & \texttt{RelayBpConfig}: $T_0,T_r,L_{\max},S$, seed offset, \texttt{RelayFormat}, and derived local/leg/solution/score widths \\
+Core inputs & \texttt{bias=prior}; restart false & Per-variable \texttt{RelayBias(...)} vector; \texttt{restartMessages=advanceLeg} \\
+Controller state & \texttt{iteration}, \texttt{frameLimit}, terminal \texttt{outcome} & \texttt{leg}, \texttt{frameLegLimit}, \texttt{localIteration}, \texttt{totalIterations}, \texttt{solutions}, \texttt{haveBest}, \texttt{bestScore}, and \texttt{bestCorrection} \\
+Coefficient state & None & Abstract \texttt{RelayCoefficientSource}; production per-VNU LFSR state and coefficient registers in \texttt{LfsrRelayCoefficients} \\
+Result metadata & Common result with one-bit leg/solution counts & Same \texttt{BpDecoderResult} type parameterized with wider \texttt{legsExecuted} and \texttt{solutionsFound} fields \\
+Observability & Frame result only & \texttt{RelayLegTrace} \texttt{Valid} event at each terminal VNU commit \\
+Artifact ABI & Runtime iteration limit & Runtime total-leg limit plus leg/solution outputs and trace fields \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\section{Legacy \texorpdfstring{$2\times2$}{2 x 2} Teaching Top}
 \texttt{MinSumIteration2x2} predates the generic graph-generated top and remains
 as the shortest registered wiring example for
 \begin{equation}
@@ -564,11 +795,13 @@ Target & Emitted top \\
 \texttt{check-valls} & \texttt{CheckNode}, constant scaling \\
 \texttt{check-relay} & \texttt{CheckNode}, ramp scaling \\
 \texttt{variable} & \texttt{VariableNode} \\
-\texttt{relay-variable} & combinational Relay VNU \\
-\texttt{relay-unit} & registered Relay VNU \\
 \texttt{iteration} & legacy \texttt{MinSumIteration2x2} \\
 \texttt{convergence} & Steane convergence checker \\
 \texttt{static-steane} & full static Steane datapath \\
+\texttt{vanilla-steane} & autonomous four-iteration vanilla BP \\
+\texttt{relay-steane} & autonomous four-leg Relay BP \\
+\texttt{bp-filtered-}\newline\texttt{osd0-steane} & composed BP and filtered OSD-0 \\
+\texttt{neighbour-sorter} & standalone reliability sorter \\
 \texttt{pe-col}, \texttt{pe-diag} & Gauss--Jordan leaf PEs \\
 \texttt{trapezoid-mesh} & three-row example mesh \\
 \bottomrule
@@ -621,10 +854,16 @@ Specification or executable & Claim established \\
 \path{TannerNodeGraphsSpec.scala} & Exact Steane check and variable views, degrees, global-edge bijection, and all local port bindings. \\
 \path{TwoMinSpec.scala} & Exhaustive $8^4$ comparison for four three-bit inputs, including all duplicate-minimum cases. \\
 \path{CheckNodeSpec.scala} & Exhaustive unscaled degree-three behavior over all two-bit magnitudes, signs, and syndromes; directed Valls and ramp scaling. \\
-\path{VariableNodeSpec.scala} & Fixed-seed randomized base VNU comparison, full eight-bit hard-decision range, exact Relay bias cases, and registered feedback. \\
+\path{VariableNodeSpec.scala} & Fixed-seed randomized base VNU comparison, full eight-bit hard-decision range, saturation, and registered feedback. \\
+\path{RelayBiasSpec.scala} & Reduced partial-product truncation, signs, saturation, and five-bit paper-profile bias against an independent integer model. \\
+\path{RelayCoefficientsSpec.scala} & Lane seeds, Galois recurrence, initial coefficient, leg stability, advancement, and repeatable frame reseeding. \\
 \path{ConvergenceCheckerSpec.scala} & All $2^7$ Steane estimates crossed with all $2^3$ syndromes for $H\hat e\oplus S$ and convergence. \\
 \path{IterationSpec.scala} & The legacy $2\times2$ result and its two-cycle validity protocol. \\
 \path{StaticTannerDatapathSpec.scala} & Step-before-load rejection, prior-to-edge initialization, all eight Steane syndromes, four consecutive iterations, two-cycle timing, marginals, decisions, residual, and convergence against the Scala oracle. \\
+\path{BpDecodersSpec.scala} & Vanilla and Relay frame control, runtime limits, output stalls, persistent marginals, message restart, zero-cycle leg transitions, scoring/ties, failure snapshot, production LFSRs, and external oracle fixture. \\
+\path{SparseBitmaskStreamerSpec.scala} & Ascending sparse-one output, empty masks, banking, and backpressure stability. \\
+\path{BpOnlyArtifactSpec.scala} & BP-only wrapper, independent model, empty/sparse corrections, exact always-ready cycle equation, and output stalls. \\
+\path{RelayBpArtifactSpec} in \path{RelayBpExperiment.scala} & Default Relay-5 profile, independent Relay result, per-leg trace, sparse stream, final soft state, and exact cycle equations. \\
 \path{EndToEndSpec.scala} & Strict file-schema, graph-dimension, prior-range, syndrome, and iteration validation before elaboration. \\
 \path{GaussJordanPESpec.scala} & Opcode encodings, all PE transitions, synchronous reset, disabled hold, and combinational reduction forwarding. \\
 \path{TrapezoidMeshSpec.scala} & Configuration rejection, boundary behavior, an independent cycle oracle under deterministic and random traffic, row-major packing, hold/reset, and reduction delays one through three. \\
@@ -638,184 +877,415 @@ standalone lint script is a separate, weaker check: it establishes that a named
 emitted artifact is accepted by Verilator with the selected warnings, not that
 its values match the algorithm.
 
-\subsection{Retired exact emitted-SystemVerilog comparison}
-The retired exact-artifact harness closed the gap between testing a Chisel
-generator and testing the saved RTL file.  Its script performed
-four explicit stages:
+\section{Shared BB144 Experimental Contract}
+\subsection{Code, circuit, detector model, and samples}
+The two maintained decoder experiments deliberately share one problem source:
+\path{benchmarks/bb144/bb144.py}.  It reconstructs the pinned gross-code
+$[[144,12,12]]$ CSS matrices from $12\times6$ bivariate circulants.  If
+$X=P_{12}\otimes I_6$ and $Y=I_{12}\otimes P_6$, the implemented polynomials
+and parity checks are
+\begin{align}
+ A&=X^3+Y+Y^2,&B&=Y^3+X+X^2,\label{eq:bb-polynomials}\\
+ H_X&=[A\mid B],&H_Z&=[B^{\mathsf T}\mid A^{\mathsf T}],
+ \label{eq:bb-checks}
+\end{align}
+with addition over $\mathrm{GF}(2)$.  \texttt{code\_data} checks the resulting
+$72\times144$ matrices, CSS commutation, 12 logical rows, and the upstream
+commit recorded by \texttt{UPSTREAM\_COMMIT}.
+
+\texttt{circuit} constructs the 12-noisy-cycle memory circuit plus two
+zero-noise closure rounds.  At physical error probability $p$, reset and
+measurement flips occur with probability $p$, one-qubit noisy locations use a
+uniform nonidentity Pauli conditioned on an event of probability $p$, and
+two-qubit noisy locations analogously use one of 15 nonidentity Paulis.
+\texttt{sample\_physical} independently implements this circuit-level Pauli
+process in vectorized NumPy and returns the Z-check detector differences and 12
+actual logical-observable bits.  Probability point $a$ uses deterministic seed
+\begin{equation}
+ z_a=z_0+a,\qquad z_0=14412
+ \label{eq:sample-seed}
+\end{equation}
+unless the command line overrides $z_0$.
+
+\texttt{z\_check\_model} also obtains an undecomposed Stim detector error model
+(DEM).  A decoder column is keyed by its complete detector support and logical
+support.  Independent effects with the same key are merged by the XOR law
+\begin{equation}
+ p_{a\oplus b}=p_a(1-p_b)+p_b(1-p_a).
+ \label{eq:xor-probability}
+\end{equation}
+Equal detector supports with different logical supports remain distinct.
+For DEM-column probability $p_j\in(0,1/2)$, \texttt{quantize} computes
+\begin{equation}
+ \Lambda_j=\min\!\left(15,
+ \left\lfloor2\ln\frac{1-p_j}{p_j}+\frac12\right\rfloor\right).
+ \label{eq:prior-quantization}
+\end{equation}
+
+The min-sum CNU requires degree at least two, so
+\texttt{reduce\_degree\_one} solves every singleton row exactly.  If singleton
+check $i$ fixes column $j$ then $e_j=S_i$.  Let $F$ be the fixed-column set and
+$K$ the retained checks.  \texttt{reduce\_sample} forms
+\begin{align}
+ S'_i&=S_i\oplus\bigoplus_{j\in\mathcal N(i)\cap F}e_j,
+ &&i\in K,\label{eq:reduced-syndrome}\\
+ o'_q&=o_q\oplus\bigoplus_{j\in\mathcal L(q)\cap F}e_j,
+ &&0\leq q<12.\label{eq:reduced-logical}
+\end{align}
+It then deletes the fixed variables and singleton checks and remaps column
+indices.  The current code asserts the reduced dimensions
+\begin{equation}
+ (m,n,E,k_L)=(936,8784,30672,12).
+ \label{eq:bb144-reduced-dimensions}
+\end{equation}
+For every requested $p$, topology must match the first point; only priors and
+sampled frames vary.  \texttt{prepare} archives the circuit, one DEM per point,
+\texttt{sweep.json}, the complete \texttt{benchmark.txt} stream, and the first
+shot at each point as \texttt{verify/p*/problem.json} plus
+\texttt{actual.json}.  This separation makes the static graph and runtime data
+auditable.
+
+\subsection{Artifact output and exact cycle contract}
+\texttt{BpOnlyArtifact} in \path{BpOnlyExperiment.scala} and
+\texttt{RelayBpArtifact} in \path{RelayBpExperiment.scala} expose the same
+packed benchmark ABI.  Check zero and variable zero occupy the least-significant
+fields.  Both wrappers include unused scope and OSD-compatible accounting ports
+so the common C++ transport can also serve composed decoders; for the two
+experiments here, \texttt{osdCycles}, \texttt{selected}, \texttt{activeRows},
+and \texttt{solverCycles} are identically zero.
+
+The dense decoder correction is snapshotted by
+\texttt{SparseBitmaskStreamer} in \path{SparseBitmaskStreamer.scala}.  With bank
+width $W_b=64$, correction support
+$\mathcal C=\{j:\hat e_j=1\}$, correction weight $w=|\mathcal C|$, and occupied
+bank count
+\begin{equation}
+ b=\left|\left\{\left\lfloor\frac{j}{W_b}\right\rfloor:j\in\mathcal C\right\}\right|,
+ \label{eq:occupied-banks}
+\end{equation}
+the stream emits the members of $\mathcal C$ in strictly increasing order.
+An empty correction emits no placeholder; \texttt{resultValid} completes the
+frame.  With an always-ready consumer, the measured wrapper latency from the
+accepted input edge through result visibility is
+\begin{equation}
+ C_{\mathrm{frame}}=2I+1+b+w.
+ \label{eq:sparse-frame-clocks}
+\end{equation}
+The $2I$ term is Eq.~\eqref{eq:bp-clocks}, one clock transfers the decoder result
+into the streamer, each occupied bank costs one selection clock, and each set
+bit costs one transfer clock.  If correction output is stalled for $d$ clocks,
+$C_{\mathrm{frame}}$ increases to $2I+1+b+w+d$.  Stalling
+\texttt{resultReady} after \texttt{resultValid} holds the completed frame and
+does not increment the reported counter.  \texttt{checkSparseTiming} in
+\path{sim_main.cpp}, \texttt{BpOnlyArtifactSpec}, and
+\texttt{RelayBpArtifactSpec} enforce these equations.
+
+\section{Experiment 1: Vanilla BP on BB144}
+\subsection{Decoder profile}
+The runnable entry point is
+\path{examples/BivariateBicycle144BpOnly/run.sh}.  It elaborates
+\texttt{VanillaBpDecoder} through \texttt{BpOnlyArtifact} with
+\begin{equation}
+ (w_m,w_a,T_{\max})=(4,7,30),
+ \qquad \alpha_t\text{ given by Eq.~\eqref{eq:ramp-alpha}}.
+ \label{eq:bp-only-profile}
+\end{equation}
+The decoder stops at the first converged commit or after 30 iterations.  A
+nonconverged terminal hard decision is still streamed for diagnosis, but status
+is numeric 2 (\texttt{bp\_nonconverged}) and the experiment classifies the shot
+as a failure.  \texttt{BpOnlyArtifact} enables the optional runtime
+\texttt{iterationLimit} port; an emitted 30-iteration-capacity artifact can
+therefore execute any per-frame prefix from 1 through 30 without re-elaboration.
+The standalone BP-only sweep drives 30 unless the budget meta-experiment is
+selected.
+
+The script defaults to 1000 deterministic shots at each
+$p\in\{0.001,0.002,\ldots,0.007\}$, while \texttt{P\_VALUES} and the second
+positional argument can override those choices.  These defaults define a
+maintained executable, not a statistical sufficiency claim.
+
+\subsection{Traceable workflow}
+The BP-only workflow is the following ordered dataflow; every arrow names a
+materialized input or output rather than an implicit in-memory handoff.
 \begin{enumerate}
-  \item emit the exact static Steane \texttt{.sv} artifact;
-  \item run the test-only \texttt{StaticGolden} Scala program;
-  \item ask Verilator to compile that saved \texttt{.sv} with the C++ harness;
-  \item run the resulting executable and compare every output record.
+  \item \texttt{bb144.py prepare} writes \path{source/benchmark.txt},
+        \path{source/sweep.json}, circuit/DEM provenance, and one
+        \path{source/verify/p*/problem.json} per probability point.
+  \item \texttt{BpOnlyExperiment.main} parses one problem with
+        \texttt{DecoderProblem.read}, writes \path{artifact/config.txt} and
+        versioned \path{artifact/config.json}, evaluates
+        \texttt{BpOnlyExperiment.golden}, and emits the specialized
+        \path{artifact/rtl/BpOnlyArtifact.sv} through
+        \texttt{Generate.emitSystemVerilogFiles}.
+  \item \texttt{BpOnlySweepGolden.main} runs the independent
+        \texttt{Reference.iterate} loop for the first shot at every $p$ and
+        writes \path{verification/p*/golden.txt}.  It stops on exactly the same
+        predicate as Eq.~\eqref{eq:vanilla-stop} but shares no Chisel arithmetic.
+  \item Verilator compiles the saved SystemVerilog together with
+        \path{benchmarks/bb144/sim_main.cpp} under
+        \texttt{BP\_ONLY\_ARTIFACT}.  Exact mode runs every golden before any
+        performance sweep is accepted.
+  \item \texttt{adapters/chipsldpc.py} splits the immutable benchmark stream
+        into shot shards and records SHA-256 hashes of each input, the simulator,
+        and \path{artifact/config.txt} in \path{parallel/jobs.json}.
+  \item \texttt{workflow.py run} executes independent Verilator processes;
+        \texttt{workflow.py merge} revalidates hashes, row counts, probability
+        labels, and unique shot indices before writing \path{raw/shots.csv}.
+  \item \texttt{report.py} validates timing sums and corpus completeness, then
+        writes \path{results/results.csv}, \path{results/timing.csv},
+        \path{results/results.json}, and the logical-failure/cycle plots.
 \end{enumerate}
-The default stimulus contains 32 independently generated prior vectors, all
-eight syndromes for each vector, and four consecutive iterations, giving 1024
-checked records.  A fixed seed controls Scala's pseudorandom generator.
-Individual physical error probabilities are sampled log-uniformly from
-$[10^{-4},0.2)$ and converted to four-bit positive integer LLR priors by
+The emitted RTL is generated once because the graph is common across $p$;
+priors and syndromes are runtime inputs.  Comparing
+\path{source/benchmark.txt} across decoder runs proves whether the two
+experiments consumed an identical shot corpus.
+
+\section{Experiment 2: Relay-BP-S on BB144}
+\subsection{Relay-5 parameter profile}
+The runnable entry point is
+\path{examples/BivariateBicycle144RelayBp/run.sh}.  Its default experiment
+profile is
 \begin{equation}
- \operatorname{clip}_{[0,15]}
- \left(\operatorname{round}\left[
- 2\ln\frac{1-p}{p}\right]\right).
+ (w_m,w_a,f,T_0,T_r,R,S,o)=(4,5,3,80,60,600,5,0),
+ \label{eq:relay-experiment-profile}
 \end{equation}
-
-Each line of the golden file contains, in order, the packed syndrome, seven
-priors, the iteration control, seven expected signed marginals, packed hard
-decisions, packed residual, and convergence bit.  The C++ harness drives the
-flattened CIRCT top-level ABI, checks \texttt{load.ready}, checks
-\texttt{step.ready}, requires result invalid after the CNU edge and valid after
-the VNU edge, decodes five-bit signed marginals, and exits at the first named
-mismatch.  It is intentionally specialized to this three-check, seven-variable,
-five-bit stress artifact.  The following file-driven example uses a small
-packed ABI when a graph-independent behavioral transport is needed.
-
-The retired end-to-end script invoked Mill because it regenerated both RTL and golden
-records.  After generation, the behavioral consumer itself needs only the
-immutable SystemVerilog file, golden records, C++ harness, and Verilator.  The
-current CI runs the Scala/Chisel suite; the retired exact-artifact result is
-retained here only as an implementation record.
-
-\subsection{Retired file-driven decoder experiment}
-The retired file-driven harness used a minimal experiment description with
-exactly six fields: schema version, column count $n$, sparse
-\texttt{row\_ones}, unsigned four-bit prior magnitudes, binary syndrome, and a
-positive fixed iteration count.  The row count $m$, column adjacency, stable
-edge IDs, and local CNU/VNU ports are derived by the same pure Scala graph
-factories used by the production generator.  Validation therefore completes
-before Chisel elaboration.  Changing $H$ deliberately produces a new static
-artifact; syndrome and prior remain runtime inputs.
-
-The test-only \texttt{EndToEnd} program performs three small tasks.  It parses
-and copies the input, asks the independent \texttt{Reference} model for the
-state after every iteration, and calls the common \texttt{Generate.emit}
-helper.  \texttt{StaticTannerArtifact} is only a transport wrapper around the
-production \texttt{StaticTannerDatapath}: variable zero and check zero occupy
-the least-significant packed fields, while arithmetic and scheduling remain in
-the production core.  Its stable desired name lets one graph-independent C++
-harness compile each specialized artifact without parsing generated names.
-
-The Verilator executable checked load and step readiness, result validity after
-each of the two phase edges, every signed marginal, every hard decision, every
-residual bit, and convergence for every requested iteration.  It wrote
-\texttt{result.json} only after all comparisons pass.  That file records the
-verified final correction, quantized marginal, residual, and convergence.
-For presentation it also reports
+where $R$ is the number of noninitial legs and $S$ is the
+target number of converged legs.  \texttt{RelayBpExperimentProfile.decoderConfig}
+maps this convention to the lower-level hardware field
 \begin{equation}
- \tilde p_j=\frac{1}{1+\exp(M_j/S)},\qquad S=2,
+ L_{\max}=R+1=601,
+ \qquad I_{\max}=T_0+RT_r=36080.
+ \label{eq:relay-profile-capacity}
 \end{equation}
-which is explicitly an uncalibrated transformation of the quantized metric,
-not an exact posterior probability and not part of the bit-exact acceptance
-condition.  Failure to converge within the fixed budget is a valid result;
-only a malformed experiment or Scala/RTL disagreement fails the executable.
+This resolves the source paper's total-leg wording in favor of its Algorithm~1
+and reference-software loop convention~\cite{maurer2025}.  Setting
+\texttt{RELAY\_R=599} instead produces exactly 600 total legs.
 
-\subsection{Retired Stim rotated-surface-code experiment}
-The retired rotated-surface harness was a thin problem-source layer above the
-generic file-driven check.  Stim generated
-\texttt{surface\_code:rotated\_memory\_x} with rounds equal to distance and
-the four circuit-noise probabilities set to $0.05$.  The harness supported
-$d\in\{3,5,7\}$ without adding Stim or Python to the production Chisel module.
-It archived the circuit, flattened decomposed detector error model (DEM), and
-the exact Stim version beside each generated experiment.
+Leg zero uses $b=7$, hence $\gamma_0=1-7/8=0.125$.  Later coefficients from
+Eq.~\eqref{eq:lfsr-beta} give the effective quantized interval
+$\gamma\in[-0.25,0.625]$ for the requested paper interval
+$[-0.24,0.66]$.  The LFSR polynomial/seed mapping is a reproducible
+\texttt{chipsLDPC} choice because the paper does not publish those details; it
+is serialized in \path{artifact/config.json}.  Every frame reseeds, so all
+shots see the same coefficient schedule and differ only in their priors and
+syndromes.
 
-Each unique DEM error effect is one decoder variable.  Detector incidence
-forms a column of $H$ and logical-observable incidence forms the corresponding
-column of $L$.  Identical detector \emph{and} logical supports are combined by
-the XOR probability law
+The script defaults to 10,000 shots at
+$p\in\{0.001,0.002,0.003,0.004\}$; the example README shows a smaller explicit
+1000-shot invocation.  \texttt{P\_VALUES}, positional shot count, and
+\texttt{RELAY\_T0}, \texttt{RELAY\_TR}, \texttt{RELAY\_R},
+\texttt{RELAY\_S}, and \texttt{RELAY\_SEED\_OFFSET} parameterize a run.  This
+is the Z-check detector sector of the 12-cycle memory experiment.  A full XZ
+curve would require running and combining the independently decoded X-check
+sector; the current result must not be labeled as that full-code curve.
+
+\subsection{Workflow and Relay-specific records}
+The Relay script follows the same seven materialized stages as Experiment~1,
+with the following substitutions:
+\begin{itemize}
+  \item \texttt{RelayBpExperiment.main} emits \texttt{RelayBpArtifact} and a
+        versioned Relay configuration; \texttt{RelayBpSweepGolden.main} calls
+        \texttt{Reference.runRelay} and \texttt{Reference.lfsrBeta};
+  \item Verilator compiles \path{sim_main.cpp} under
+        \texttt{RELAY\_BP\_ARTIFACT};
+  \item the runtime \texttt{legLimit} selects a prefix of the emitted 601-leg
+        capacity; and
+  \item each terminal VNU commit adds the tuple
+        $(\ell,I_\ell,C_\ell,c_\ell)$ to the trace, where
+\begin{align}
+ C_\ell&=2I_\ell,\\
+ I&=\sum_{\ell=0}^{L-1}I_\ell,\\
+ C_{\mathrm{BP}}&=\sum_{\ell=0}^{L-1}C_\ell=2I,\\
+ N_{\mathrm{sol}}&=\sum_{\ell=0}^{L-1}c_\ell.
+ \label{eq:relay-trace-invariants}
+\end{align}
+\end{itemize}
+Here $c_\ell\in\{0,1\}$ records convergence, not logical correctness.  The
+trace is written compactly into each raw CSV row and expanded by
+\texttt{report.py} into \path{results/relay_leg_timing.csv},
+\path{relay_leg_timing_summary.csv}, and \path{relay_leg_timing.png}.
+
+If \texttt{RELAY\_REF\_DIR} names the pinned editable \texttt{trmue/relay}
+checkout, the script first runs \path{benchmarks/oracles/trmue_relay.py} on the
+pinned repetition-code coefficient fixture and archives
+\path{verification/trmue-relay.json}.  This optional cross-implementation
+check is separate from, and does not replace, the mandatory Scala golden and
+exact emitted-RTL checks.
+
+\section{Exact RTL Simulation and Statistical Reduction}
+\subsection{The dual-mode \texttt{sim\_main.cpp} harness}
+\path{benchmarks/bb144/sim_main.cpp} is the behavioral boundary between the
+saved SystemVerilog artifact and all accepted experiment data.  A compile-time
+macro selects \texttt{VBpOnlyArtifact} or \texttt{VRelayBpArtifact}; the
+arithmetic and controller remain entirely in emitted RTL.  Template helpers
+\texttt{setBit}, \texttt{getBit}, \texttt{setField}, and
+\texttt{signedField} handle both scalar and Verilator wide ports and decode
+two's-complement soft fields without assuming a C++ layout for wide signals.
+
+\texttt{readConfig} parses \path{artifact/config.txt} and rejects mismatched
+ABI versions, dimensions, widths, invalid Relay counts, or excessive capacity.
+For vanilla BP, a requested iteration budget $B$ maps directly to the hardware
+runtime limit.  For Relay BP it must satisfy
 \begin{equation}
- p_{a\oplus b}=p_a(1-p_b)+p_b(1-p_a),
+ B=T_0+rT_r,\qquad r\in\mathbb Z_{\geq0},
+ \label{eq:relay-runtime-budget}
 \end{equation}
-whereas equal detector support with different logical support remains distinct.
-The implementation stores both matrices sparsely: \texttt{row\_ones} for $H$
-in the decoder problem and \texttt{logical\_ones} for $L$ in provenance
-metadata.  Raw DEM probabilities and unquantized
-$\log((1-p)/p)$ values are retained.  The latter are rounded with scale two
-and saturated into the locked unsigned four-bit prior ABI; the generator
-rejects a probability outside $(0,0.5)$ because that ABI cannot encode a
-negative prior.
-
-Stim supplied one sampled syndrome and actual observable vector.  After the
-exact Scala/RTL comparison, the harness evaluated
+and \texttt{decoderRuntimeLimit} drives
 \begin{equation}
- \hat o=L\hat e\pmod 2.
+ L_{\mathrm{frame}}=1+\frac{B-T_0}{T_r}.
+ \label{eq:budget-to-legs}
 \end{equation}
-The logical match is reported only when $H\hat e=S$; non-convergence is counted
-as a logical failure but not an implementation mismatch.  This keeps three
-claims separate: DEM construction, bit-exact hardware realization, and decoder
-quality on a sampled shot.
+Both mappings are checked against the capacity recorded beside the RTL.
 
-Table~\ref{tab:surface-e2e} records the completed eight-iteration checks on the
-current host with Stim 1.15.0 and Verilator 5.048.  SystemVerilog size is the
-Verilator source report; emission and Verilator columns are observed wall
-seconds.  Every saved artifact matched every Scala golden iteration.  The
-chosen noisy shot did not converge at any distance, so these runs establish
-implementation equivalence and scaling of the static artifact, not decoder
-performance.
+\texttt{decode} performs one complete hardware transaction in five explicit
+phases:
+\begin{enumerate}
+  \item clear all packed inputs, set the runtime limit, and pack syndrome bit
+        $i$ at offset $i$ and prior $j$ at offset $jw_m$;
+  \item assert \texttt{inputValid}, require \texttt{inputReady}, clock the
+        accepting edge, and then deassert \texttt{inputValid};
+  \item on each subsequent clock, collect every sparse correction transfer and
+        Relay leg-trace event until \texttt{resultValid};
+  \item reject any repeated or out-of-range correction index, require
+        \texttt{correctionLast} only on the final nonempty transfer, reconstruct
+        the dense correction, and sign-extend each packed $w_a$-bit soft output;
+  \item compare the RTL cycle counter with the harness's observed clock count,
+        accept the result, and clock once more to return the wrapper to idle.
+\end{enumerate}
+For a requested iteration bound $B$ and configured OSD prefixes $p_k$, the
+benchmark-mode deadlock watchdog is
+\begin{equation}
+ C_{\max}=4n+2m+3\sum_k p_k+2B+128.
+ \label{eq:sim-watchdog}
+\end{equation}
+Exact mode substitutes the golden iteration count for $B$.  This bound is only
+a failure detector; it is never reported as decoder latency.
 
-\begin{table}[t]
-\caption{Rotated-surface exact-artifact checks.}
-\label{tab:surface-e2e}
-\centering
-\scriptsize
-\begin{tabular}{@{}rrrrrrr@{}}
-\toprule
-$d$ & $m$ & $n$ & $E$ & SV MB & Emit s & Vlt s \\
-\midrule
-3 & 24 & 221 & 568 & 1.214 & 6 & 15.581 \\
-5 & 120 & 1679 & 5008 & 8.135 & 28 & 94.549 \\
-7 & 336 & 5473 & 17160 & 23.842 & 92 & 392.370 \\
-\bottomrule
-\end{tabular}
-\end{table}
+\texttt{checkSparseTiming} enforces Eqs.~\eqref{eq:bp-clocks} and
+\eqref{eq:sparse-frame-clocks}.  For these BP-only artifacts,
+\texttt{breakdown} consequently records
+\begin{equation}
+ C_{\mathrm{dispatch}}=1,\qquad
+ C_{\mathrm{BP\ output}}=b+w,
+ \label{eq:sim-breakdown}
+\end{equation}
+with all sort, solver, and OSD terms zero.  \texttt{checkRelayTiming} enforces ordered leg
+indices, per-leg limits, Eq.~\eqref{eq:relay-trace-invariants}, and consistency
+of the solution count.  A trace or timing mismatch is therefore a failed run,
+not a post-processing warning.
 
-\subsection{Retired SystemVerilog-only 30-iteration profile}
-The retired profile fixed the three supported distances and an iteration
-budget of 30.  Its test-only entry point called the production
-generator through \texttt{Generate.emitSystemVerilog}; unlike the inspection
-flow, it does not request or write FIRRTL-dialect MLIR.  Each distance directory
-separates the emitted \texttt{rtl/StaticTannerArtifact.sv} from Stim provenance
-and from Scala golden records and Verilator products under
-\texttt{verification/}.  The RTL directory is therefore an unambiguous
-synthesis input rather than a mixture of representations.
+The executable has two modes:
+\begin{itemize}
+  \item \texttt{exactMain(golden,result)} reads an independent Scala golden,
+        calls \texttt{decode} at the artifact's full configured capacity, and
+        compares status, iteration and cycle counts, soft vector, sparse stream,
+        and all Relay metadata.  Only after every field matches does it write
+        \texttt{result.json}.
+  \item \texttt{benchmarkMain(input,csv,config,budget)} reads the BB144 stream,
+        runs every shot on the same already-verified RTL object, checks all
+        transport/timing invariants, evaluates logical observables, and writes
+        one raw CSV row per shot.  The optional budget selects the runtime path
+        in Eqs.~\eqref{eq:relay-runtime-budget}--\eqref{eq:budget-to-legs}.
+\end{itemize}
+The Scala golden files are produced by
+\texttt{BpOnlyExperiment.golden} or \texttt{RelayBpExperiment.golden}.  Their
+configuration line, syndrome, priors, terminal status/counters, soft state, and
+sparse correction are a compact verification protocol; the Relay record also
+contains every expected leg tuple.
 
-The standalone harness still checks the handshake, signed marginal, hard
-decision, residual, and convergence after every iteration.  Only after those
-bit-exact checks pass does a small reporting step retain four final fields:
-\texttt{soft\_outputs}, \texttt{corrections}, \texttt{converged}, and
-\texttt{logical\_failure}.  The first field is the signed quantized marginal,
-not a calibrated probability.  The last is true when the correction fails to
-clear the syndrome or when its logical parity differs from the sampled Stim
-observable.  Verification data remain available for audit without becoming
-reported decoder metrics.  Stim was isolated in the ignored repository-local
-\texttt{.venv}; the retired setup helper is no longer part of the maintained
-BB144 workflow.
+\subsection{Logical classification and reported estimators}
+For logical-support row $\mathcal L(q)$, \texttt{benchmarkMain} predicts
+\begin{equation}
+ \hat o_q=\bigoplus_{j\in\mathcal L(q)}\hat e_j.
+ \label{eq:predicted-observable}
+\end{equation}
+Let $a_s$ be the decoder-success predicate for shot $s$ (vanilla convergence or
+at least one Relay solution), and let $o_s$ be the 12-bit physical-sample
+observable vector after Eq.~\eqref{eq:reduced-logical}.  The recorded word
+failure indicator is
+\begin{equation}
+ F_s=[\neg a_s]\lor[\hat o_s\neq o_s].
+ \label{eq:word-failure-event}
+\end{equation}
+For $N$ shots at one $p$, \texttt{report.py} computes
+\begin{align}
+ \widehat P_{\mathrm{word}}&=\frac1N\sum_{s=1}^{N}F_s,
+ \label{eq:word-failure-estimator}\\
+ \widehat p_{L/\mathrm{cycle}}&=
+ 1-(1-\widehat P_{\mathrm{word}})^{1/12},
+ \label{eq:per-cycle-rate}\\
+ \overline C&=\frac1N\sum_{s=1}^{N}C_s.
+ \label{eq:mean-cycles}
+\end{align}
+Equation~\eqref{eq:per-cycle-rate} converts a 12-QEC-cycle experiment word
+probability under a constant independent-rate interpretation; it does not
+change the underlying shot-level failure definition.  The conditional BP plot
+uses only shots with successful BP status in both numerator and denominator and
+counts $[\hat o_s\neq o_s]$ among that subset.
 
-The deterministic default shot was run with Stim 1.16.0 and Verilator 5.048.
-All 30 states matched the Scala oracle at every distance.  The sample-specific
-decoder outcomes in Table~\ref{tab:surface-30} are not failure-rate estimates.
+For $x=\sum_sF_s$, $\hat p=x/N$, and
+$z=1.959963984540054$, the reported Wilson 95\% interval is
+\begin{align}
+ d&=1+\frac{z^2}{N},\\
+ c&=\frac{\hat p+z^2/(2N)}{d},\\
+ r&=\frac{z}{d}\sqrt{\frac{x(N-x)}{N^3}+\frac{z^2}{4N^2}},\\
+ [p_-,p_+]&=[\max(0,c-r),\min(1,c+r)].
+ \label{eq:wilson}
+\end{align}
+Cycle medians, means, maxima, and nearest-rank 95th percentiles are computed
+from measured $C_s$.  Stage totals are accepted only if their sum equals every
+shot's \texttt{total\_cycles}.  Relay summaries additionally aggregate the
+validated leg traces by probability and one-based presentation leg number.
 
-\begin{table}[t]
-\caption{SystemVerilog-only 30-iteration checks.}
-\label{tab:surface-30}
-\centering
-\small
-\begin{tabular}{@{}rrrr@{}}
-\toprule
-$d$ & Exact match & Converged & Logical failure \\
-\midrule
-3 & yes & yes & no \\
-5 & yes & no & yes \\
-7 & yes & no & yes \\
-\bottomrule
-\end{tabular}
-\end{table}
+\subsection{Hashed parallel execution}
+\path{benchmarks/rtl_shards/adapters/chipsldpc.py} writes one input file per
+$(p,\text{shot range})$ and a manifest containing SHA-256 digests of every
+input, the simulator executable, and its configuration.  With a budget sweep,
+the same input shard is referenced by one job per budget; no resampling occurs.
+\texttt{workflow.py run} skips only an already present output whose source hash,
+row count, local indices, and group labels all validate.  It writes through a
+temporary file and atomically renames on success.  \texttt{workflow.py merge}
+repeats artifact and row validation, converts local to global shot indices, and
+rejects duplicates before producing the raw corpus.  Host wall time and
+throughput are recorded separately from architecture clocks.
+
+\subsection{Runtime iteration-budget meta-experiment}
+The iteration-budget example's \texttt{run.sh} is an analysis
+workflow over either Experiment~1 or Experiment~2, not a third decoder.  It
+prepares one probability point and one deterministic shot corpus, emits one
+artifact at the maximum requested capacity, and runs every shot at every budget
+through the runtime-limit port.  Vanilla accepts any positive budget not
+exceeding capacity.  Relay accepts only Eq.~\eqref{eq:relay-runtime-budget}; the
+script converts the largest budget into the emitted $R$ capacity and the C++
+harness converts each individual budget back into a total-leg limit.
+
+For budget $B$ and executed iterations $I_{B,s}$,
+\path{benchmarks/bb144/budget_report.py} reports
+\begin{align}
+ \overline I_B&=\frac1N\sum_{s=1}^{N}I_{B,s},\\
+ h_B&=1.96\frac{s_B}{\sqrt N},\\
+ I_{B,95}&=I_{B,(\lceil0.95N\rceil)},\\
+ \widehat P_{\mathrm{word},B}&=\frac1N\sum_{s=1}^{N}F_{B,s},
+ \label{eq:budget-metrics}
+\end{align}
+where $s_B$ is the sample standard deviation and $I_{B,(k)}$ is the $k$th
+ordered value.  It rejects an incomplete budget group, duplicate shot index, or
+any $I_{B,s}>B$.  The plotted point is
+$(\overline I_B,\widehat P_{\mathrm{word},B})$ with the mean-iteration normal
+half-width and Wilson failure interval; zero observed failures are plotted at
+their Wilson upper bound.  Outputs are
+\path{results/budget_sweep.csv}, \path{budget_sweep.json}, and
+\path{logical_failure_vs_average_iterations.{png,pdf}}.
 
 \subsection{What simulation does not establish}
 Behavioral tests establish finite sets of values, protocol conditions, and
-cycle latency.  They do not establish maximum clock frequency, critical path,
-lookup-table or register count, routing congestion, memory use, power, decoding
-failure rate, or throughput across many independently resident shots.  Those
-claims require a named code, stimulus distribution, stopping policy, FPGA,
-synthesis/place-and-route tool version, constraints, and archived reports.
+architecture-clock latency.  A completed many-shot run estimates failure under
+its recorded sample distribution and reports finite-sample intervals; it does
+not prove the population failure rate.  Neither test class establishes maximum
+clock frequency, critical path, lookup-table or register count, routing
+congestion, memory use, power, or throughput across independently resident
+shots.  Converting architecture clocks into time requires a named FPGA,
+synthesis/place-and-route version, constraints, and achieved clock period.
 
 \section{Repository Map and Reproduction}
 The maintained repository is deliberately shallow:
@@ -826,8 +1296,8 @@ The maintained repository is deliberately shallow:
         simulation harnesses, specifications, and golden-record generation;
   \item \path{scripts/} contains one concise action per script: test, emit,
         lint an emitted RTL artifact, or create the BB144 Python environment;
-  \item \path{examples/} contains only the maintained BB144 BP-only flow and
-        the Relay-BP flow under construction;
+  \item \path{examples/} contains the maintained BB144 BP-only and Relay-BP
+        flows plus the runtime-budget meta-experiment;
   \item \path{benchmarks/bb144/} contains their shared circuit, sampling,
         Verilator transport, and reporting support;
   \item \path{build.mill}, the Mill wrapper, and \path{.mill-jvm-opts} define the
@@ -838,7 +1308,8 @@ IDE metadata is not part of the architecture.  Generated \path{build/}, test,
 and TeX auxiliary products are ignored and must not be cited as immutable
 research outputs.
 
-From the repository root, run the complete behavioral suite:
+From the repository root, use one shell session for the commands below.  Run
+the complete behavioral suite:
 \begin{verbatim}
 ./scripts/test.sh
 \end{verbatim}
@@ -860,14 +1331,27 @@ duplicating their focused tests as examples:
 Run the maintained BB144 vanilla-BP benchmark with:
 \begin{verbatim}
 ./scripts/setup-bb144.sh
-./examples/BivariateBicycle144BpOnly/run.sh \
-  build/generated/bb144-bp-only 1000
+cd examples/BivariateBicycle144BpOnly
+OUT=../../build/generated/bb144
+./run.sh ${OUT}-bp-only 1000
 \end{verbatim}
-The arguments select the output directory and shots per probability point.
-The Relay-BP example remains documentation-only until its wrapper, oracle
-comparison, and end-to-end smoke check share this benchmark contract.  Focused
-structure checks use Mill's \texttt{testOnly} target with the fully qualified
-specification name.
+Run the Relay-BP experiment with:
+\begin{verbatim}
+cd ../BivariateBicycle144RelayBp
+./run.sh ${OUT}-relay-bp 1000
+\end{verbatim}
+The default Relay parameters are Eq.~\eqref{eq:relay-experiment-profile}; the
+environment overrides are listed in that example's README.  Run the budget
+meta-experiment, selecting either \texttt{DECODER=vanilla} or
+\texttt{DECODER=relay}, with:
+\begin{verbatim}
+cd ..
+cd BivariateBicycle144IterationBudgetSweep
+export DECODER=relay P_VALUE=0.003
+./run.sh ${OUT}-relay-budget 10000
+\end{verbatim}
+Focused structure checks use Mill's \texttt{testOnly} target with the fully
+qualified specification name.
 
 When inspecting a new decoder change, the intended research loop is: change
 one pure configuration or leaf rule; extend the independent Scala oracle and
@@ -881,48 +1365,53 @@ production source.
 \section{Planned Extensions}
 The next additions should preserve the same boundaries:
 \begin{enumerate}
-  \item make the graph-level VNU policy explicit and integrate the currently
-        tested Relay memory leaf without duplicating static wiring;
-  \item add a controller for iteration count, convergence response, Relay legs,
-        and correction completion while retaining the checker as a pure
-        combinational observer;
-  \item implement the paper-specific reduced-logic Relay multiplier as a
-        compile-time alternative to the exact fixed-point baseline;
-  \item add optional coefficient generation as an independently tested source;
-  \item define a stable artifact-level shot interface, then bank or replicate
-        state to evaluate parallel syndrome streams; and
-  \item add immutable FPGA synthesis, placement, timing, resource, power, and
-        benchmark records followed by analysis-only tables and plots.
+  \item synthesize and place the named BB144 artifacts, archive constraints and
+        reports, and replace paper-clock conversions with achieved frequencies;
+  \item bank or replicate state to evaluate throughput for multiple resident
+        syndrome streams rather than sequential single-frame latency alone;
+  \item implement and combine the complementary X-check sector under the same
+        sample provenance before comparing against a full-code XZ curve;
+  \item compare alternative, explicitly versioned coefficient generators and,
+        if available, reproduce the external paper's unpublished PRNG mapping;
+  \item connect the autonomous BP result to the existing filtered OSD-0 or
+        Gauss--Jordan subsystem under one stable artifact ABI; and
+  \item add immutable result manifests containing Git revision and exact Scala,
+        Chisel, CIRCT, Verilator, Python, Stim, synthesis, and FPGA tool versions.
 \end{enumerate}
 A new policy should first be a small immutable Scala choice or a narrow bundle
 extension.  Graph topology must remain elaboration-only, and benchmarking must
 consume emitted artifacts rather than import the Chisel generator.
 
 \section{Threats to Validity}
-The Steane graph validates irregular variable degrees, static composition, and
-the complete verification path but does not represent qLDPC routing pressure.
 Small exhaustive configurations expose ties and fixed-width corner cases but do
-not prove every degree/width combination.  The Scala graph and graph-level
-oracle intentionally share topology records, so their separate structural tests
-are important but are not a formal equivalence proof.  Random LLR priors are
-deterministic and useful for regression, not a decoder-performance study.  The
-current Relay leaf uses exact multipliers and is not integrated in the static
-network; it therefore does not reproduce the complete published Relay
-architecture.  CIRCT may change textual RTL while preserving semantics, so
-behavioral comparisons are primary and textual checks remain limited to
-structure inspection and lint.
+not prove every degree/width combination.  The Scala oracle and DUT share the
+validated graph metadata, although graph construction and port mapping have
+separate structural tests; the comparison is strong regression evidence, not a
+formal equivalence proof.  The BB144 study covers one reduced Z-check detector
+sector and one circuit/noise construction.  It is not a full XZ gross-code
+result, and exact degree-one preprocessing changes the hardware graph while
+preserving the represented equations.  The deterministic coefficient schedule
+supports reproducibility but is not evidence that the unpublished PRNG used by
+the external FPGA work is identical.  Quantized-prior scoring is a hardware
+selection rule, not proof of minimum physical correction weight.  Reusing the
+same shots across decoder/budget variants improves paired comparison but does
+not remove finite-sample uncertainty.  Finally, Verilator clock counts are
+architectural; without place-and-route they imply neither frequency nor wall
+clock latency on an FPGA.
 
 \section{Conclusion}
-The present \texttt{chipsLDPC} revision implements a complete small path from a
-validated Scala parity-check graph to a statically wired, two-cycle min-sum
-iteration network and an independently checked SystemVerilog artifact.  Shared
-minimum broadcasting, canonical sign/magnitude conversion, balanced arithmetic,
-explicit saturation, load initialization, convergence, and cycle handshakes are
-all visible in source and executable tests.  Relay memory and binary
-Gauss--Jordan logic are isolated extensions rather than hidden changes to the
-base datapath.  The resulting organization is small enough to inspect from
-configuration through RTL while retaining clear insertion points for future
-decoder control, parallel-shot benchmarking, and FPGA results.
+The present \texttt{chipsLDPC} revision implements two complete autonomous
+decoders over one statically wired, two-clock min-sum core.  Vanilla BP adds
+only frame and iteration control.  Relay BP extends that controller with a
+reduced memory-bias calculation, deterministic per-variable coefficients,
+leg/local/total counters, persistent marginal state, message restart, candidate
+scoring, and per-leg trace metadata; it does not duplicate the Tanner datapath.
+Both variants are emitted as exact BB144 SystemVerilog artifacts, checked
+against independent Scala outcomes, exercised on the same deterministic
+circuit-level samples, and reduced through hash-validated raw records.  The
+explicit equations and named source symbols in this manuscript separate
+algorithmic behavior, architecture-clock accounting, statistical estimation,
+and as-yet-unmeasured FPGA implementation claims.
 
 \begin{thebibliography}{9}
 \bibitem{valls2021}

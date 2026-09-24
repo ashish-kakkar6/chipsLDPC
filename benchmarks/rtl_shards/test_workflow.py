@@ -37,6 +37,21 @@ class WorkflowTest(unittest.TestCase):
             self.assertEqual(manifest["command"][-1], str(config.resolve()))
             self.assertNotIn("decoder_clock_cycles_per_shot", manifest["metrics"])
 
+            budget_output = root / "budget-run"
+            subprocess.run([sys.executable, str(ADAPTER), str(source), str(simulator),
+                            str(budget_output), "--shard-size", "1",
+                            "--limit-per-point", "1", "--max-p", "0.1",
+                            "--simulator-config", str(config), "--budgets", "2", "5"],
+                           check=True)
+            budget_manifest = json.loads((budget_output / "jobs.json").read_text())
+            self.assertEqual([job["groups"]["max_bp_iterations"]
+                              for job in budget_manifest["jobs"]], ["2", "5"])
+            self.assertEqual(len({job["input"] for job in budget_manifest["jobs"]}), 1)
+            self.assertEqual(budget_manifest["csv"]["groups"],
+                             ["p", "max_bp_iterations"])
+            self.assertEqual(budget_manifest["command"][1:3],
+                             ["--budget", "{max_bp_iterations}"])
+
     def test_parallel_restart_and_merge(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

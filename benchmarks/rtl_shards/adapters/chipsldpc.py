@@ -24,9 +24,12 @@ def line(stream, label):
 
 
 def plan(source, simulator, output, shard_size, limit, max_p, clock_cycles,
-         simulator_config):
+         simulator_config, budgets=None):
     if shard_size < 1 or (limit is not None and limit < 1):
         raise ValueError("shard size and shot limit must be positive")
+    budgets = tuple(budgets or ())
+    if any(value < 1 for value in budgets) or len(set(budgets)) != len(budgets):
+        raise ValueError("budgets must be distinct positive integers")
     source, simulator, output = source.resolve(), simulator.resolve(), output.resolve()
     simulator_config = simulator_config.resolve() if simulator_config else None
     if not source.is_file() or not simulator.is_file():
@@ -58,8 +61,8 @@ def plan(source, simulator, output, shard_size, limit, max_p, clock_cycles,
                 selected = 0
             for start in range(0, selected, shard_size):
                 count = min(shard_size, selected - start)
-                name = f"p{point:03d}-s{start:06d}-n{count:06d}"
-                path = inputs / f"{name}.txt"
+                base = f"p{point:03d}-s{start:06d}-n{count:06d}"
+                path = inputs / f"{base}.txt"
                 temporary = path.with_suffix(".tmp")
                 with temporary.open("w") as shard:
                     shard.write(prefix)
@@ -67,16 +70,24 @@ def plan(source, simulator, output, shard_size, limit, max_p, clock_cycles,
                     for _ in range(count):
                         shard.write(line(stream, "sample"))
                 os.replace(temporary, path)
-                jobs.append({"id": name, "input": str(path.relative_to(output)),
-                             "input_sha256": digest(path),
-                             "output": f"raw/{name}.csv", "start": start,
-                             "count": count, "groups": {"p": p}})
+                for budget in budgets or (None,):
+                    name = base if budget is None else f"b{budget:09d}-{base}"
+                    groups = {"p": p}
+                    if budget is not None:
+                        groups["max_bp_iterations"] = str(budget)
+                    jobs.append({"id": name, "input": str(path.relative_to(output)),
+                                 "input_sha256": digest(path),
+                                 "output": f"raw/{name}.csv", "start": start,
+                                 "count": count, "groups": groups})
             for _ in range(available - selected):
                 line(stream, "discarded sample")
         if stream.read().strip():
             raise ValueError("extra data after final benchmark record")
     artifacts = [simulator] + ([simulator_config] if simulator_config else [])
-    command = [str(simulator), "--benchmark", "{input}", "{output}"]
+    command = [str(simulator)]
+    if budgets:
+        command += ["--budget", "{max_bp_iterations}"]
+    command += ["--benchmark", "{input}", "{output}"]
     if simulator_config:
         command.append(str(simulator_config))
     metrics = {"qec_cycles_per_shot": qec_cycles}
@@ -87,7 +98,8 @@ def plan(source, simulator, output, shard_size, limit, max_p, clock_cycles,
         "source": {"path": str(source), "sha256": digest(source)},
         "artifacts": [{"path": str(path), "sha256": digest(path)} for path in artifacts],
         "command": command,
-        "csv": {"index": "shot", "groups": ["p"]},
+        "csv": {"index": "shot", "groups": ["p"] +
+                (["max_bp_iterations"] if budgets else [])},
         "metrics": metrics,
         "jobs": jobs,
     }
@@ -108,12 +120,13 @@ def main():
     parser.add_argument("--max-p", type=float)
     parser.add_argument("--clock-cycles-per-shot", type=int)
     parser.add_argument("--simulator-config", type=Path)
+    parser.add_argument("--budgets", type=int, nargs="+")
     args = parser.parse_args()
     if args.clock_cycles_per_shot is not None and args.clock_cycles_per_shot < 1:
         parser.error("clock cycles per shot must be positive")
     plan(args.source, args.simulator, args.output, args.shard_size,
          args.limit_per_point, args.max_p, args.clock_cycles_per_shot,
-         args.simulator_config)
+         args.simulator_config, args.budgets)
 
 
 if __name__ == "__main__":

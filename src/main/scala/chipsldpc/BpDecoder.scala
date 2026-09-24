@@ -38,7 +38,10 @@ final class BpDecoderResult(
 }
 
 /** Autonomous early-terminating min-sum BP. */
-final class VanillaBpDecoder(config: VanillaBpConfig) extends Module {
+final class VanillaBpDecoder(
+    config: VanillaBpConfig,
+    runtimeIterationLimit: Boolean = false,
+) extends Module {
   val io = IO(new Bundle {
     val in = Flipped(Decoupled(new StaticDecoderInput(
       config.graph.checkCount, config.graph.variableCount, config.q,
@@ -48,10 +51,12 @@ final class VanillaBpDecoder(config: VanillaBpConfig) extends Module {
       config.iterationBits, legBits = 1, solutionBits = 1,
     ))
   })
+  val iterationLimit = if (runtimeIterationLimit) Some(IO(Input(UInt(config.iterationBits.W)))) else None
 
   private val sIdle :: sRun :: sOutput :: Nil = Enum(3)
   private val state = RegInit(sIdle)
   private val iteration = RegInit(0.U(config.iterationBits.W))
+  private val frameLimit = RegInit(config.iterations.U(config.iterationBits.W))
   private val outcome = Reg(chiselTypeOf(io.out.bits))
   private val core = Module(new StaticTannerCore(config.nodes, config.q, config.scale))
   private val completed = iteration + 1.U
@@ -71,11 +76,14 @@ final class VanillaBpDecoder(config: VanillaBpConfig) extends Module {
   io.out.bits := outcome
 
   when(io.in.fire) {
+    val requested = iterationLimit.getOrElse(config.iterations.U(config.iterationBits.W))
+    assert(requested > 0.U && requested <= config.iterations.U)
+    frameLimit := requested
     iteration := 0.U
     state := sRun
   }.elsewhen(state === sRun && core.io.commit.valid) {
     iteration := completed
-    when(core.io.commit.bits.converged || completed === config.iterations.U) {
+    when(core.io.commit.bits.converged || completed === frameLimit) {
       outcome.success := core.io.commit.bits.converged
       outcome.correction := core.io.commit.bits.decision
       outcome.marginal := core.io.commit.bits.marginal

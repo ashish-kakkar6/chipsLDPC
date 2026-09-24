@@ -74,6 +74,12 @@ static void reset(Dut &dut) {
   dut.scopeValid = 0;
   dut.correctionReady = 1;
   dut.resultReady = 1;
+#ifdef BP_ONLY_ARTIFACT
+  dut.iterationLimit = 1;
+#endif
+#ifdef RELAY_BP_ARTIFACT
+  dut.legLimit = 1;
+#endif
   clearPort(dut.syndrome);
   clearPort(dut.prior);
   clearPort(dut.scope);
@@ -122,7 +128,7 @@ static void checkSparseOnes(const Frame &frame) {
 
 static Frame decode(
     Dut &dut, const std::vector<int> &syndrome, const std::vector<int> &prior,
-    int magnitudeBits, int accumulatorBits, int64_t maxCycles) {
+    int magnitudeBits, int accumulatorBits, int runtimeLimit, int64_t maxCycles) {
   const int m = syndrome.size(), n = prior.size();
   dut.inputValid = 0;
   dut.scopeValid = 0;
@@ -131,6 +137,12 @@ static Frame decode(
   clearPort(dut.syndrome);
   clearPort(dut.prior);
   clearPort(dut.scope);
+#ifdef BP_ONLY_ARTIFACT
+  dut.iterationLimit = runtimeLimit;
+#endif
+#ifdef RELAY_BP_ARTIFACT
+  dut.legLimit = runtimeLimit;
+#endif
   for (int row = 0; row < m; ++row) setBit(dut.syndrome, row, syndrome[row]);
   for (int col = 0; col < n; ++col)
     setField(dut.prior, col * magnitudeBits, magnitudeBits, prior[col]);
@@ -225,6 +237,10 @@ static ArtifactConfig readConfig(std::istream &input) {
       streamAbi != 2 || config.sparseBankWidth <= 0)
     fail("invalid sparse correction stream configuration");
 #endif
+#ifdef BP_ONLY_ARTIFACT
+  if (!(input >> config.maximumIterations) || config.maximumIterations <= 0)
+    fail("invalid BP iteration capacity");
+#endif
 #ifdef RELAY_BP_ARTIFACT
   int legTraceAbi;
   if (!(input >> config.initialIterations >> config.relayIterations >>
@@ -244,6 +260,23 @@ static ArtifactConfig readConfig(std::istream &input) {
       std::adjacent_find(config.prefixes.begin(), config.prefixes.end()) != config.prefixes.end()))
     fail("invalid artifact prefixes");
   return config;
+}
+
+static int decoderRuntimeLimit(const ArtifactConfig &config, int budget) {
+#ifdef BP_ONLY_ARTIFACT
+  if (budget < 1 || budget > config.maximumIterations) fail("BP budget exceeds artifact capacity");
+  return budget;
+#elif defined(RELAY_BP_ARTIFACT)
+  if (budget < config.initialIterations ||
+      (budget - config.initialIterations) % config.relayIterations)
+    fail("Relay budget must equal T0 + R*Tr");
+  const int legs = 1 + (budget - config.initialIterations) / config.relayIterations;
+  if (legs > config.maximumLegs) fail("Relay budget exceeds artifact capacity");
+  return legs;
+#else
+  (void)config; (void)budget;
+  return 0;
+#endif
 }
 
 #ifdef RELAY_BP_ARTIFACT
@@ -370,6 +403,7 @@ static int exactMain(const char *goldenPath, const char *resultPath) {
   reset(dut);
   const auto actual = decode(
     dut, syndrome, prior, config.magnitudeBits, config.accumulatorBits,
+    decoderRuntimeLimit(config, config.maximumIterations),
     4 * config.n + 2 * config.m + 3 * std::accumulate(
       config.prefixes.begin(), config.prefixes.end(), 0) +
       2 * expected.iterations + 128);
@@ -422,7 +456,8 @@ static int exactMain(const char *goldenPath, const char *resultPath) {
 }
 
 static int benchmarkMain(
-    const char *inputPath, const char *csvPath, const char *configPath) {
+    const char *inputPath, const char *csvPath, const char *configPath,
+    int requestedBudget = 0) {
   std::ifstream input(inputPath);
   std::ifstream artifactConfig(configPath);
   const auto config = readConfig(artifactConfig);
@@ -432,6 +467,9 @@ static int benchmarkMain(
     fail("invalid benchmark header");
   if (m != config.m || n != config.n || magnitudeBits != config.magnitudeBits)
     fail("benchmark and artifact dimensions differ");
+  const int budget = requestedBudget ? requestedBudget :
+    (config.maximumIterations ? config.maximumIterations : iterations);
+  const int runtimeLimit = decoderRuntimeLimit(config, budget);
   std::vector<std::vector<int>> logicals(logicalCount);
   for (auto &logical : logicals) {
     int degree;
@@ -440,7 +478,7 @@ static int benchmarkMain(
   }
   std::ofstream csv(csvPath);
   if (!csv) fail("cannot create benchmark output");
-  csv << "p,shot,status,converged,iterations,";
+  csv << "p,shot,max_bp_iterations,status,converged,iterations,";
 #ifdef RELAY_BP_ARTIFACT
   csv << "legs_executed,solutions_found,leg_trace,";
 #endif
@@ -462,9 +500,10 @@ static int benchmarkMain(
       const auto observedBits = readValues(input, logicalCount, "logical observables");
       const auto frame = decode(
         dut, syndrome, prior, magnitudeBits, config.accumulatorBits,
+        runtimeLimit,
         4 * n + 2 * m + 3 * std::accumulate(
           config.prefixes.begin(), config.prefixes.end(), 0) +
-          2LL * (config.maximumIterations ? config.maximumIterations : iterations) + 128);
+          2LL * budget + 128);
       const int eligible = std::count_if(frame.soft.begin(), frame.soft.end(),
         [&config](int value) { return std::abs(value) < config.threshold; });
       if (frame.status == 0 && frame.selected != 0) fail("BP result selected OSD columns");
@@ -498,7 +537,7 @@ static int benchmarkMain(
       const auto timing = breakdown(
         frame, n, eligible, config.prefixes, config.sparseBankWidth);
       const int weight = std::count(frame.correction.begin(), frame.correction.end(), 1);
-      csv << std::setprecision(12) << p << ',' << shot << ','
+      csv << std::setprecision(12) << p << ',' << shot << ',' << budget << ','
           << statusName(frame.status, bpOnly)
           << ',' << int(frame.status == 0) << ',' << frame.iterations << ',';
 #ifdef RELAY_BP_ARTIFACT
@@ -529,10 +568,15 @@ int main(int argc, char **argv) {
   Verilated::commandArgs(argc, argv);
   if (argc == 5 && std::string(argv[1]) == "--benchmark")
     return benchmarkMain(argv[2], argv[3], argv[4]);
+  if (argc == 7 && std::string(argv[1]) == "--budget" &&
+      std::string(argv[3]) == "--benchmark")
+    return benchmarkMain(argv[4], argv[5], argv[6], std::stoi(argv[2]));
   if (argc != 3) {
     std::cerr << "usage: <simulator> <golden.txt> <result.json>\n"
                  "   or: <simulator> --benchmark <input> <shots.csv> "
-                 "<artifact-config>\n";
+                 "<artifact-config>\n"
+                 "   or: <simulator> --budget <iterations> --benchmark <input> "
+                 "<shots.csv> <artifact-config>\n";
     return 2;
   }
   return exactMain(argv[1], argv[2]);

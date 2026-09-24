@@ -15,6 +15,7 @@ private final class BpOnlyArtifact(problem: DecoderProblem) extends Module {
 
   val inputValid = IO(Input(Bool()))
   val inputReady = IO(Output(Bool()))
+  val iterationLimit = IO(Input(UInt(iterationBits.W)))
   val syndrome = IO(Input(UInt(graph.checkCount.W)))
   val prior = IO(Input(UInt((problem.n * q.magnitudeBits).W)))
   val scopeValid = IO(Input(Bool()))
@@ -39,13 +40,14 @@ private final class BpOnlyArtifact(problem: DecoderProblem) extends Module {
   private val sIdle :: sBp :: sOutput :: Nil = Enum(3)
   private val state = RegInit(sIdle)
   private val cycleCount = RegInit(0.U(32.W))
-  private val bp = Module(new VanillaBpDecoder(VanillaBpConfig(
-    problem.nodes, problem.iterations,
-  )))
+  private val bp = Module(new VanillaBpDecoder(
+    VanillaBpConfig(problem.nodes, problem.iterations), runtimeIterationLimit = true,
+  ))
   private val outcome = Reg(chiselTypeOf(bp.io.out.bits))
   private val streamer = Module(new SparseBitmaskStreamer(streamConfig))
 
   bp.io.in.valid := state === sIdle && inputValid
+  bp.iterationLimit.get := iterationLimit
   bp.io.in.bits.syndrome.zipWithIndex.foreach { case (bit, i) => bit := syndrome(i) }
   bp.io.in.bits.prior.zipWithIndex.foreach { case (value, i) =>
     value := prior((i + 1) * q.magnitudeBits - 1, i * q.magnitudeBits)
@@ -94,7 +96,7 @@ object BpOnlyExperiment {
   private[chipsldpc] def artifactConfig(problem: DecoderProblem) = Seq(
     problem.graph.checkCount, problem.n, RelayDefaults.q.magnitudeBits,
     RelayDefaults.q.accumulatorBits, 0, 0,
-    sparseStreamAbi, SparseBitmaskStreamerConfig(problem.n).bankWidth,
+    sparseStreamAbi, SparseBitmaskStreamerConfig(problem.n).bankWidth, problem.iterations,
   )
 
   private[chipsldpc] def golden(problem: DecoderProblem): String = {
@@ -137,7 +139,7 @@ object BpOnlyExperiment {
     writeGolden(problem, output.resolve("verification/golden.txt"))
     Files.writeString(output.resolve("artifact/config.txt"), artifactConfig(problem).mkString(" ") + "\n")
     Files.writeString(output.resolve("artifact/config.json"), ujson.Obj(
-      "schema" -> "chipsldpc.bb144-bp-only.v2",
+      "schema" -> "chipsldpc.bb144-bp-only.v3",
       "iterations" -> problem.iterations,
       "decoder" -> "early_terminating_min_sum_bp",
       "correction_stream_abi" -> sparseStreamAbi,

@@ -38,6 +38,7 @@ private final class RelayBpArtifact(problem: DecoderProblem, config: RelayBpConf
 
   val inputValid = IO(Input(Bool()))
   val inputReady = IO(Output(Bool()))
+  val legLimit = IO(Input(UInt(config.legBits.W)))
   val syndrome = IO(Input(UInt(graph.checkCount.W)))
   val prior = IO(Input(UInt((problem.n * q.magnitudeBits).W)))
   val scopeValid = IO(Input(Bool()))
@@ -68,11 +69,12 @@ private final class RelayBpArtifact(problem: DecoderProblem, config: RelayBpConf
   private val sIdle :: sBp :: sOutput :: Nil = Enum(3)
   private val state = RegInit(sIdle)
   private val cycleCount = RegInit(0.U(32.W))
-  private val bp = Module(new RelayBpDecoder(config))
+  private val bp = Module(new RelayBpDecoder(config, runtimeLegLimit = true))
   private val outcome = Reg(chiselTypeOf(bp.io.out.bits))
   private val streamer = Module(new SparseBitmaskStreamer(streamConfig))
 
   bp.io.in.valid := state === sIdle && inputValid
+  bp.legLimit.get := legLimit
   bp.io.in.bits.syndrome.zipWithIndex.foreach { case (bit, i) => bit := syndrome(i) }
   bp.io.in.bits.prior.zipWithIndex.foreach { case (value, i) =>
     value := prior((i + 1) * q.magnitudeBits - 1, i * q.magnitudeBits)
@@ -189,7 +191,7 @@ object RelayBpExperiment {
     Files.writeString(output.resolve("artifact/config.txt"),
       artifactConfig(problem, config).mkString(" ") + "\n")
     Files.writeString(output.resolve("artifact/config.json"), ujson.Obj(
-      "schema" -> "chipsldpc.bb144-relay-bp.v1",
+      "schema" -> "chipsldpc.bb144-relay-bp.v2",
       "decoder" -> "relay_bp_s",
       "profile" -> (if (figure7) "fpga-paper-figure-7-parameters-relay-5-int4.2.8" else "custom"),
       "paper" -> "arXiv:2510.21600v1 Figure 7",
@@ -307,6 +309,7 @@ final class RelayBpArtifactSpec extends AnyFreeSpec with ChiselSim {
 
     simulate(new RelayBpArtifact(problem, config)) { dut =>
       dut.inputValid.poke(false.B)
+      dut.legLimit.poke(config.maximumLegs.U)
       dut.scopeValid.poke(false.B)
       dut.scope.poke(0.U)
       dut.correctionReady.poke(true.B)

@@ -193,6 +193,41 @@ final class BpDecodersSpec extends AnyFreeSpec with ChiselSim {
     }
   }
 
+  "a runtime BP limit reuses a larger elaborated decoder" in {
+    val graph = nodes(3, Seq(Seq(0, 1), Seq(1, 2), Seq(0, 2)))
+    val capacity = VanillaBpConfig(graph, iterations = 4)
+    val limited = capacity.copy(iterations = 1)
+    val priors = Vector(2, 1, 1)
+    val syndrome = Vector.fill(3)(true)
+    val expected = Reference.runVanilla(limited, priors, syndrome)
+    simulate(new VanillaBpDecoder(capacity, runtimeIterationLimit = true)) { dut =>
+      reset(dut)
+      dut.iterationLimit.get.poke(1.U)
+      runVanilla(dut, priors, syndrome, expected)
+    }
+  }
+
+  "a runtime Relay limit stops at a prefix of the elaborated legs" in {
+    val graph = nodes(3, Seq(Seq(0, 1), Seq(1, 2), Seq(0, 2)))
+    val capacity = RelayBpConfig(
+      graph, initialIterations = 1, relayIterations = 1,
+      maximumLegs = 3, solutionTarget = 1,
+    )
+    val limited = capacity.copy(maximumLegs = 1)
+    val beta = Vector(Vector.fill(3)(7), Vector.fill(3)(3), Vector.fill(3)(8))
+    val priors = Vector(2, 1, 1)
+    val syndrome = Vector.fill(3)(true)
+    val expected = Reference.runRelay(limited, priors, syndrome, beta.take(1))
+    assert(expected.legs == 1)
+    simulate(new RelayBpDecoder(
+      capacity, Some(() => new TraceRelayCoefficients(beta)), runtimeLegLimit = true,
+    )) { dut =>
+      reset(dut)
+      dut.legLimit.get.poke(1.U)
+      runRelay(dut, priors, syndrome, expected)
+    }
+  }
+
   "beta eight makes a one-leg Relay decoder identical to vanilla BP" in {
     val steane = nodes(7, Seq(Seq(3, 4, 5, 6), Seq(1, 2, 5, 6), Seq(0, 2, 4, 6)))
     val priors = Vector(1, 2, 3, 4, 5, 6, 7)
