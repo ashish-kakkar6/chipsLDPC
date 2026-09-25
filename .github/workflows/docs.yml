@@ -70,7 +70,7 @@ jobs:
             "https://api.github.com/repos/${{ github.repository }}/pages")
           if [ "$status" = "200" ]; then
             echo "enabled=true" >> "$GITHUB_OUTPUT"
-          elif [ "$status" = "404" ]; then
+          elif [ "$status" = "403" ] || [ "$status" = "404" ]; then
             echo "enabled=false" >> "$GITHUB_OUTPUT"
           else
             echo "Unexpected GitHub Pages API status: $status" >&2
