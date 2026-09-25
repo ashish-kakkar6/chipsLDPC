@@ -1,5 +1,7 @@
 # chipsLDPC
 
+[Documentation](https://ashish-kakkar6.github.io/chipsLDPC/)
+
 `chipsLDPC` is a small Chisel/CIRCT research generator for fixed-graph qLDPC
 decoder hardware. It implements reusable min-sum nodes and
 an independent binary Gauss–Jordan mesh.

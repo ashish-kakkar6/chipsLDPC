@@ -293,6 +293,8 @@ Temporary Items
 build/
 /out/
 .venv/
+.venv-docs/
+docs/_build/
 paper/*.aux
 paper/*.log
 paper/*.out

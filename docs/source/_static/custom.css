@@ -1,0 +1,14 @@
+img {
+  max-width: 100%;
+}
+
+table.docutils,
+.wy-table-responsive table {
+  width: 100%;
+}
+
+code,
+.rst-content tt,
+.rst-content code {
+  font-size: 0.95em;
+}
