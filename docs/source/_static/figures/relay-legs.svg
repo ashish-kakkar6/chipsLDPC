@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="510" viewBox="0 0 900 510" role="img" aria-labelledby="relay-legs-title relay-legs-desc">
+<title id="relay-legs-title">Relay BP: memory between legs</title>
+<desc id="relay-legs-desc">A frame loads immutable positive priors, initial marginals, and coefficient integer seven. Each BP leg keeps its coefficients fixed while updating messages and marginals. A later leg retains the terminal stored marginal, restarts edge messages and local scaling, and advances the coefficient source. Converged legs offer candidates scored with quantized priors. The decoder ends at its candidate target or total leg limit.</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#4b6074"/></marker></defs>
+<style>text{font-family:Arial,Helvetica,sans-serif;fill:#16324f;font-size:17px} .small{font-size:15px;fill:#4b6074}.label{font-size:16px;font-weight:600;fill:#235fa4}.heading{font-size:25px;font-weight:700}.box-title{font-size:17px;font-weight:600}.wire{fill:none;stroke:#4b6074;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}</style>
+<rect width="900" height="510" fill="white"/>
+<text x="30" y="39" text-anchor="start" class="heading">
+<tspan x="30" dy="0">Relay BP · memory between legs</tspan>
+</text>
+<text x="30" y="68" text-anchor="start" class="small">
+<tspan x="30" dy="0">Leg index ℓ is separate from iteration t inside a leg</tspan>
+</text>
+<path d="M 30 84 H 870" stroke="#d4dfe8"/>
+<rect x="30" y="155" width="175" height="145" rx="9" fill="#f5f9fd" stroke="#235fa4" stroke-width="1.4"/>
+<text x="117.5" y="183" text-anchor="middle" class="box-title">
+<tspan x="117.5" dy="0">Frame load</tspan>
+</text>
+<text x="117.5" y="203" text-anchor="middle" class="small">
+<tspan x="117.5" dy="0">M<tspan baseline-shift="-25%" font-size="75%">j</tspan> = λ<tspan baseline-shift="-25%" font-size="75%">j</tspan></tspan>
+<tspan x="117.5" dy="19">R<tspan baseline-shift="-25%" font-size="75%">i,j</tspan> = +λ<tspan baseline-shift="-25%" font-size="75%">j</tspan></tspan>
+<tspan x="117.5" dy="19">coefficient b = 7</tspan>
+</text>
+<rect x="255" y="155" width="235" height="145" rx="9" fill="#f5f9fd" stroke="#235fa4" stroke-width="1.4"/>
+<text x="372.5" y="183" text-anchor="middle" class="box-title">
+<tspan x="372.5" dy="0">Leg 0</tspan>
+</text>
+<text x="372.5" y="203" text-anchor="middle" class="small">
+<tspan x="372.5" dy="0">Fixed coefficients</tspan>
+<tspan x="372.5" dy="19">BP iterations 1 … T<tspan baseline-shift="-25%" font-size="75%">0</tspan></tspan>
+<tspan x="372.5" dy="19">Converge or reach budget</tspan>
+</text>
+<rect x="615" y="155" width="255" height="145" rx="9" fill="#f5f9fd" stroke="#235fa4" stroke-width="1.4"/>
+<text x="742.5" y="183" text-anchor="middle" class="box-title">
+<tspan x="742.5" dy="0">Next leg ℓ + 1</tspan>
+</text>
+<text x="742.5" y="203" text-anchor="middle" class="small">
+<tspan x="742.5" dy="0">New fixed coefficients</tspan>
+<tspan x="742.5" dy="19">BP iterations 1 … T<tspan baseline-shift="-25%" font-size="75%">r</tspan></tspan>
+<tspan x="742.5" dy="19">Converge or reach budget</tspan>
+</text>
+<path class="wire" d="M 205 226 L 255 226" marker-end="url(#arrow)"/>
+<path class="wire" d="M 490 226 L 615 226" marker-end="url(#arrow)"/>
+<text x="552" y="211" text-anchor="middle" class="label">
+<tspan x="552" dy="0">retain M<tspan baseline-shift="-25%" font-size="75%">j</tspan></tspan>
+</text>
+<text x="552" y="246" text-anchor="middle" class="small">
+<tspan x="552" dy="0">stored memory</tspan>
+</text>
+<text x="30" y="115" text-anchor="start" class="label">
+<tspan x="30" dy="0">Initialize once</tspan>
+</text>
+<text x="615" y="115" text-anchor="start" class="label">
+<tspan x="615" dy="0">Repeat while allowed</tspan>
+</text>
+<text x="552" y="331" text-anchor="middle" class="small">
+<tspan x="552" dy="0">Between legs: restart R = +λ and local ramp;</tspan>
+<tspan x="552" dy="23">advance the coefficient source once.</tspan>
+</text>
+<rect x="30" y="392" width="840" height="82" rx="9" fill="#eef7f7" stroke="#167d8d" stroke-width="1.4"/>
+<text x="450.0" y="420" text-anchor="middle" class="box-title">
+<tspan x="450.0" dy="0">Stop and select</tspan>
+</text>
+<text x="450.0" y="440" text-anchor="middle" class="small">
+<tspan x="450.0" dy="0">Score each converged candidate with immutable quantized priors.</tspan>
+<tspan x="450.0" dy="19">Finish at solutionTarget or maximumLegs; keep the lowest score.</tspan>
+</text>
+<path class="wire" d="M 280 300 L 280 392" marker-end="url(#arrow)"/>
+<path class="wire" d="M 850 300 L 850 392" marker-end="url(#arrow)"/>
+</svg>

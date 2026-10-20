@@ -1,0 +1,10 @@
+{
+  "schema": "rtl-shards.run.v1",
+  "manifest_sha256": "ae556bc030b9a3ab1e215faae74ce4834e15a00794653cea2dc036efd86425c7",
+  "workers": 16,
+  "total_shards": 70,
+  "executed_shards": 70,
+  "executed_shots": 7000,
+  "wall_seconds": 39567.08203433268,
+  "shots_per_second": 0.1769147392250468
+}

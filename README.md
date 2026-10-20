@@ -86,7 +86,7 @@ The emission step writes inspectable FIRRTL-dialect MLIR and synthesizable
 SystemVerilog under `build/generated/<top>/`. Available inspection tops are:
 
 ```text
-two-min  check-valls  check-relay  variable  iteration  convergence  static-steane  vanilla-steane  relay-steane  bp-filtered-osd0-steane  pe-col  pe-diag  trapezoid-mesh
+two-min  check-valls  check-relay  variable  iteration  convergence  static-steane  vanilla-steane  relay-steane  bp-filtered-osd0-steane  neighbour-sorter  pe-col  pe-diag  trapezoid-mesh
 ```
 
 Focused tests can be run directly, for example:

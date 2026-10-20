@@ -10,6 +10,8 @@ on:
       - "src/test/scala/chipsldpc/**"
       - "scripts/**"
       - "examples/**"
+      - "benchmarks/**"
+      - "paper/**"
   push:
     branches: [main]
     paths:
@@ -20,6 +22,8 @@ on:
       - "src/test/scala/chipsldpc/**"
       - "scripts/**"
       - "examples/**"
+      - "benchmarks/**"
+      - "paper/**"
   workflow_dispatch:
 
 permissions:
@@ -54,6 +58,9 @@ jobs:
         run: >-
           python -m sphinx -n -W --keep-going -b html
           docs/source docs/_build/html
+
+      - name: Check documentation assets
+        run: make -C docs check-assets PYTHON=python
 
       - name: Check Pages configuration
         id: pages

@@ -1,0 +1,2 @@
+# Optional: only needed to regenerate the archived result plots.
+matplotlib==3.11.1

@@ -1,0 +1,278 @@
+{
+  "schema": "chipsldpc.docs.bb144-legacy-metadata.v1",
+  "description": "Selected fields copied from archived sweep metadata, with explicit publication annotations. This is not a producer receipt.",
+  "profiles": {
+    "vanilla": {
+      "schema": "chipsldpc.bb144.v2",
+      "tools": {
+        "stim": "1.16.0"
+      },
+      "upstream": {
+        "url": "https://github.com/sbravyi/BivariateBicycleCodes",
+        "commit": "fa77e3333d3ec44c79d8f914dd24c040d1da471b"
+      },
+      "code": {
+        "n": 144,
+        "k": 12,
+        "d": 12,
+        "cycles": 12,
+        "ell": 12,
+        "m": 6,
+        "a": [
+          3,
+          1,
+          2
+        ],
+        "b": [
+          3,
+          1,
+          2
+        ]
+      },
+      "decoder": {
+        "iterations": 30,
+        "quantization_bits": 4,
+        "prior_scale": 2
+      },
+      "sampling": {
+        "p_values": [
+          0.001,
+          0.002,
+          0.003,
+          0.004,
+          0.005,
+          0.006,
+          0.007
+        ],
+        "shots_per_p": 1000,
+        "seed": 14412,
+        "model": "Z-check sector of one circuit-level Pauli process"
+      },
+      "dem": {
+        "m": 936,
+        "n": 8784,
+        "e": 30672,
+        "sector": "Z-check detectors (X-error component)",
+        "raw_m": 1008,
+        "raw_n": 8856,
+        "singleton_eliminations": 72,
+        "logical_observables": 12
+      },
+      "original_producer_revision": null,
+      "verification_record": {
+        "first_shot_fixtures_present": true,
+        "full_output_csv": false,
+        "all_shots_audit_present": false,
+        "experiment_receipt_present": false,
+        "producer_receipts_present": false
+      }
+    },
+    "relay": {
+      "schema": "chipsldpc.bb144.v2",
+      "tools": {
+        "stim": "1.16.0"
+      },
+      "upstream": {
+        "url": "https://github.com/sbravyi/BivariateBicycleCodes",
+        "commit": "fa77e3333d3ec44c79d8f914dd24c040d1da471b"
+      },
+      "code": {
+        "n": 144,
+        "k": 12,
+        "d": 12,
+        "cycles": 12,
+        "ell": 12,
+        "m": 6,
+        "a": [
+          3,
+          1,
+          2
+        ],
+        "b": [
+          3,
+          1,
+          2
+        ]
+      },
+      "decoder": {
+        "iterations": 80,
+        "quantization_bits": 4,
+        "prior_scale": 2
+      },
+      "sampling": {
+        "p_values": [
+          0.001,
+          0.002,
+          0.003,
+          0.004,
+          0.005,
+          0.006,
+          0.007
+        ],
+        "shots_per_p": 1000,
+        "seed": 14412,
+        "model": "Z-check sector of one circuit-level Pauli process"
+      },
+      "dem": {
+        "m": 936,
+        "n": 8784,
+        "e": 30672,
+        "sector": "Z-check detectors (X-error component)",
+        "raw_m": 1008,
+        "raw_n": 8856,
+        "singleton_eliminations": 72,
+        "logical_observables": 12
+      },
+      "original_producer_revision": null,
+      "verification_record": {
+        "first_shot_fixtures_present": true,
+        "full_output_csv": false,
+        "all_shots_audit_present": false,
+        "experiment_receipt_present": false,
+        "producer_receipts_present": false
+      }
+    },
+    "budget": {
+      "schema": "chipsldpc.bb144.v2",
+      "tools": {
+        "stim": "1.16.0"
+      },
+      "upstream": {
+        "url": "https://github.com/sbravyi/BivariateBicycleCodes",
+        "commit": "fa77e3333d3ec44c79d8f914dd24c040d1da471b"
+      },
+      "code": {
+        "n": 144,
+        "k": 12,
+        "d": 12,
+        "cycles": 12,
+        "ell": 12,
+        "m": 6,
+        "a": [
+          3,
+          1,
+          2
+        ],
+        "b": [
+          3,
+          1,
+          2
+        ]
+      },
+      "decoder": {
+        "iterations": 60,
+        "quantization_bits": 4,
+        "prior_scale": 2
+      },
+      "sampling": {
+        "p_values": [
+          0.003
+        ],
+        "shots_per_p": 20000,
+        "seed": 14412,
+        "model": "Z-check sector of one circuit-level Pauli process"
+      },
+      "dem": {
+        "m": 936,
+        "n": 8784,
+        "e": 30672,
+        "sector": "Z-check detectors (X-error component)",
+        "raw_m": 1008,
+        "raw_n": 8856,
+        "singleton_eliminations": 72,
+        "logical_observables": 12
+      },
+      "original_producer_revision": null,
+      "verification_record": {
+        "first_shot_fixtures_present": true,
+        "full_output_csv": false,
+        "all_shots_audit_present": false,
+        "experiment_receipt_present": false,
+        "producer_receipts_present": false
+      }
+    }
+  },
+  "model": {
+    "saved_schema": "chipsldpc.bb144.v2",
+    "noisy_rounds": 12,
+    "noiseless_closure_rounds": 2,
+    "sampling": "physical circuit Pauli faults; historical corpus retained",
+    "raw_H_shape": [
+      1008,
+      8856
+    ],
+    "raw_A_shape": [
+      12,
+      8856
+    ],
+    "reduced_H_shape": [
+      936,
+      8784
+    ],
+    "reduced_A_shape": [
+      12,
+      8784
+    ],
+    "exact_singleton_elimination": 72,
+    "sources": [
+      {
+        "path": "chipsLDPC/build/generated/bb144-bp-only/source/sweep.json",
+        "sha256": "582ff2ed062d5e241b721d9d5a007a39d5d596b406e5986bc5b6e5e3fd489f58"
+      },
+      {
+        "path": "chipsLDPC/build/generated/bb144-bp-only/source/z_checks.stim",
+        "sha256": "eda64ae0747bce9d4908df8e7657eb5d6447397d8124a521785aecd0207206f7"
+      }
+    ]
+  },
+  "historical_sampler": {
+    "label": "legacy-v1",
+    "recorded_sampler_version": null,
+    "implementation_convention": "numpy.default_rng(root_seed + probability_index), sequential array draws whose shape depends on shot count",
+    "numpy_version_recorded": false,
+    "prefix_stable_in_shots": false,
+    "independent_of_probability_order": false
+  },
+  "paired_inputs": {
+    "profiles": [
+      "vanilla",
+      "relay"
+    ],
+    "comparison": "benchmark bytes after first header line; iteration headers differ",
+    "sha256": "7587daf75a4cea6b95e63e9e8bd602a1023d4c8ce492514d2f175cfafc901dc5",
+    "budget_is_separate_corpus": true
+  },
+  "budget": {
+    "R": [
+      0,
+      1,
+      2,
+      4,
+      8,
+      16,
+      33,
+      67
+    ],
+    "max_bp_iterations": [
+      60,
+      120,
+      180,
+      300,
+      540,
+      1020,
+      2040,
+      4080
+    ],
+    "formula": "T0 + R*Tr = 60*(R+1)"
+  },
+  "metrics": {
+    "failure": "nonconvergence or any mismatch among 12 logical observables",
+    "rate": "1 - (1 - word_failure_probability) ** (1/12)",
+    "budget_y": "word_failure_probability",
+    "budget_x": "mean_executed_iterations",
+    "word_ci": "two-sided Wilson 95%, z=1.959963984540054",
+    "budget_x_ci": "1.96 * sample_stdev(iterations) / sqrt(shots); saved summary only",
+    "zero_failures": "separate downward triangles at upper Wilson bound; no connecting estimate segment"
+  },
+  "excluded_artifacts": "Raw shots, full benchmark bodies, sparse graph/prior arrays, emitted RTL, simulator binaries and original producer source are not part of this lightweight bundle. Their available source paths/hashes identify archives, not downloadable evidence."
+}

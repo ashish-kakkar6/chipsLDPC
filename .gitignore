@@ -73,7 +73,8 @@ tmp/
 local.properties
 .settings/
 .loadpath
-
+paper/
+output/pdf/
 # Eclipse Core
 .project
 

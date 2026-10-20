@@ -1,0 +1,146 @@
+{
+  "schema": "chipsldpc.docs.bb144-legacy-bundle.v1",
+  "dataset_id": "bb144-legacy-v1",
+  "description": "Frozen summaries underlying Beamer result slides, imported after verification against presentation provenance; no simulations rerun. Legacy-v1 is a documentation label, not a field in the saved sweep.",
+  "files": {
+    "vanilla.csv": {
+      "sha256": "b09eeed3adc30aa241e96680df7502c90078e5f01fa9e08207f4fd5114813260",
+      "bytes": 2191
+    },
+    "relay.csv": {
+      "sha256": "3cf54a4fecd1e14c335c7d6cd18fb6aa89dcfe3685cd23c7e5302d08a6a12ca9",
+      "bytes": 3562
+    },
+    "budget.csv": {
+      "sha256": "4c19cbaa7da9343103f9d0902fb41e8abef128cfc0556c78f398eeedc03cabba",
+      "bytes": 1084
+    },
+    "presentation-provenance.json": {
+      "sha256": "304e58e5e54d9174bd438b1ac2bee7e538d34a90f6be4f1ac5adbfb0d403f5bd",
+      "bytes": 1946
+    },
+    "vanilla-config.json": {
+      "sha256": "4ca35d1a0643ceecbe84f8eae5a6d96db11c57f7d5914653f7b86a982e2db2ae",
+      "bytes": 441
+    },
+    "vanilla-run.json": {
+      "sha256": "41b0eae98b941bec496d83f6c9ee97fc015dbb47497191d9f1a3b2e89020ebb7",
+      "bytes": 295
+    },
+    "relay-config.json": {
+      "sha256": "f4b13e8fed18b76a755229a6f93cbb04c42bbf913fcf3e8e8c9a114efd11bfdf",
+      "bytes": 1760
+    },
+    "relay-run.json": {
+      "sha256": "76556b8c866448ca942ce1c85e0c6eb3a067dd6cd52675d9195c889a634947d7",
+      "bytes": 294
+    },
+    "budget-config.json": {
+      "sha256": "6347b1a747dd641cbfc1bcc76c0cb8c70bcec89f5dd6f4998a534a9eeaeb1338",
+      "bytes": 1716
+    },
+    "budget-run.json": {
+      "sha256": "3576dfb47f9193a8e6ca27b0018475a965e7a47bf4ec2359d087e594f6fe1467",
+      "bytes": 301
+    },
+    "metadata.json": {
+      "sha256": "4d9cdb4c177caaf8a745f8d04bc525a99dd7c91b01b6d29e7bf7c598faf03d73",
+      "bytes": 7106
+    }
+  },
+  "original_sources": {
+    "vanilla": {
+      "csv": {
+        "path": "chipsLDPC/build/generated/bb144-bp-only/results/results.csv",
+        "sha256": "b09eeed3adc30aa241e96680df7502c90078e5f01fa9e08207f4fd5114813260",
+        "bytes": 2191
+      },
+      "config": {
+        "path": "chipsLDPC/build/generated/bb144-bp-only/artifact/config.json",
+        "sha256": "4ca35d1a0643ceecbe84f8eae5a6d96db11c57f7d5914653f7b86a982e2db2ae",
+        "bytes": 441
+      },
+      "run": {
+        "path": "chipsLDPC/build/generated/bb144-bp-only/parallel/run.json",
+        "sha256": "41b0eae98b941bec496d83f6c9ee97fc015dbb47497191d9f1a3b2e89020ebb7",
+        "bytes": 295
+      },
+      "sweep": {
+        "path": "chipsLDPC/build/generated/bb144-bp-only/source/sweep.json",
+        "sha256": "582ff2ed062d5e241b721d9d5a007a39d5d596b406e5986bc5b6e5e3fd489f58",
+        "bytes": 1423995,
+        "included": false
+      },
+      "benchmark": {
+        "path": "chipsLDPC/build/generated/bb144-bp-only/source/benchmark.txt",
+        "sha256": "254468897bc12e1296febac42180d57ede3d229ad8425b2785c0c4f392e742a1",
+        "bytes": 13533415,
+        "included": false
+      }
+    },
+    "relay": {
+      "csv": {
+        "path": "chipsLDPC/build/generated/bb144-relay-fig7/results/results.csv",
+        "sha256": "3cf54a4fecd1e14c335c7d6cd18fb6aa89dcfe3685cd23c7e5302d08a6a12ca9",
+        "bytes": 3562
+      },
+      "config": {
+        "path": "chipsLDPC/build/generated/bb144-relay-fig7/artifact/config.json",
+        "sha256": "f4b13e8fed18b76a755229a6f93cbb04c42bbf913fcf3e8e8c9a114efd11bfdf",
+        "bytes": 1760
+      },
+      "run": {
+        "path": "chipsLDPC/build/generated/bb144-relay-fig7/parallel/run.json",
+        "sha256": "76556b8c866448ca942ce1c85e0c6eb3a067dd6cd52675d9195c889a634947d7",
+        "bytes": 294
+      },
+      "sweep": {
+        "path": "chipsLDPC/build/generated/bb144-relay-fig7/source/sweep.json",
+        "sha256": "42df05b0a5b344d0071cec3c381daf33d68710a188fb5e23f75cdfac9a38ecde",
+        "bytes": 1423995,
+        "included": false
+      },
+      "benchmark": {
+        "path": "chipsLDPC/build/generated/bb144-relay-fig7/source/benchmark.txt",
+        "sha256": "b60ac1e9d9a3a3852c9a2e9d6bc46292600225ff03ea828d5699675d61934d60",
+        "bytes": 13533415,
+        "included": false
+      }
+    },
+    "budget": {
+      "csv": {
+        "path": "chipsLDPC/build/generated/bb144-relay-budget2/results/budget_sweep.csv",
+        "sha256": "4c19cbaa7da9343103f9d0902fb41e8abef128cfc0556c78f398eeedc03cabba",
+        "bytes": 1084
+      },
+      "config": {
+        "path": "chipsLDPC/build/generated/bb144-relay-budget2/artifact/config.json",
+        "sha256": "6347b1a747dd641cbfc1bcc76c0cb8c70bcec89f5dd6f4998a534a9eeaeb1338",
+        "bytes": 1716
+      },
+      "run": {
+        "path": "chipsLDPC/build/generated/bb144-relay-budget2/parallel/run.json",
+        "sha256": "3576dfb47f9193a8e6ca27b0018475a965e7a47bf4ec2359d087e594f6fe1467",
+        "bytes": 301
+      },
+      "sweep": {
+        "path": "chipsLDPC/build/generated/bb144-relay-budget2/source/sweep.json",
+        "sha256": "6df28dc0989a648343549436d414348f70df41d3a9272e339161b0f0648762f3",
+        "bytes": 801814,
+        "included": false
+      },
+      "benchmark": {
+        "path": "chipsLDPC/build/generated/bb144-relay-budget2/source/benchmark.txt",
+        "sha256": "03ae5c464546b7796a2ccbd75a8d26ef41c9e33e4e5951902961bd7c1daab894",
+        "bytes": 38033678,
+        "included": false
+      }
+    }
+  },
+  "records": {
+    "vanilla": 7,
+    "relay": 7,
+    "budget": 8
+  },
+  "publication_limit": "Hashes protect bundled inputs from accidental changes; this manifest is not a retrospective execution receipt or an all-shot decoder correctness audit."
+}

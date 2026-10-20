@@ -41,6 +41,10 @@ suppresses the mesh's debug-only full-state exports, avoiding quadratic debug
 wires in production RTL. Tests compare the exact vector with an independent
 GF(2) model; every two-column system through three rows is checked exhaustively.
 
+The solver's cycle counter has finite width: long row-input gaps can wrap it.
+See the [framed solver contract](../../../../../docs/source/architecture/systolic-gf2.md#framed-solver)
+for counted phases, empty systems, and output backpressure.
+
 Run `GaussJordanPESpec`, `TrapezoidMeshSpec`, and `SystolicGf2SolverSpec` for
 focused checks. Use `scripts/emit.sh pe-col`, `scripts/emit.sh pe-diag`, or
 `scripts/emit.sh trapezoid-mesh` when an inspectable MLIR/SystemVerilog

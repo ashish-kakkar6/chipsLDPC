@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="460" viewBox="0 0 1100 460" role="img" aria-labelledby="title description">
+<title id="title">Two directions on one Tanner-graph edge</title>
+<desc id="description">Square check i and circular variable j exchange messages. Check i uses its syndrome and messages from the other variables j prime and j double prime to send sigma i j toward j. Variable j uses its bias and messages from other checks i prime and i double prime to send R i j toward i. Each outgoing edge message excludes the recipient. Blue arrows point from checks to variables; teal arrows point from variables to checks.</desc>
+<defs>
+<marker id="check-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#245b8a"/></marker>
+<marker id="variable-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#007b79"/></marker>
+</defs>
+<rect width="1100" height="460" fill="white"/>
+<text x="315" y="39" text-anchor="middle" fill="#243b53" font-family="sans-serif" font-size="21" font-weight="700">Check update</text>
+<text x="785" y="39" text-anchor="middle" fill="#243b53" font-family="sans-serif" font-size="21" font-weight="700">Variable update</text>
+<path d="M 125 153 L 288 237" fill="none" stroke="#007b79" stroke-width="2.5" marker-end="url(#variable-arrow)"/>
+<path d="M 125 347 L 288 263" fill="none" stroke="#007b79" stroke-width="2.5" marker-end="url(#variable-arrow)"/>
+<path d="M 973 153 L 810 237" fill="none" stroke="#245b8a" stroke-width="2.5" marker-end="url(#check-arrow)"/>
+<path d="M 973 347 L 810 263" fill="none" stroke="#245b8a" stroke-width="2.5" marker-end="url(#check-arrow)"/>
+<path d="M 346 237 L 756 237" fill="none" stroke="#245b8a" stroke-width="2.5" marker-end="url(#check-arrow)"/>
+<path d="M 756 266 L 346 266" fill="none" stroke="#007b79" stroke-width="2.5" marker-end="url(#variable-arrow)"/>
+<path d="M 315 108 L 315 218" fill="none" stroke="#245b8a" stroke-width="2.5" marker-end="url(#check-arrow)"/>
+<path d="M 785 108 L 785 217" fill="none" stroke="#007b79" stroke-width="2.5" marker-end="url(#variable-arrow)"/>
+<text x="315" y="91" text-anchor="middle" fill="#243b53" font-family="serif" font-size="25" font-weight="700">σ<tspan baseline-shift="sub" font-size="16">i</tspan></text>
+<text x="785" y="91" text-anchor="middle" fill="#243b53" font-family="serif" font-size="25">B<tspan baseline-shift="sub" font-size="16">j</tspan><tspan baseline-shift="super" font-size="14">(t)</tspan></text>
+<text x="202" y="174" text-anchor="middle" fill="#007b79" font-family="serif" font-size="25">R<tspan baseline-shift="sub" font-size="16">i,j′</tspan><tspan baseline-shift="super" font-size="14">(t−1)</tspan></text>
+<text x="202" y="352" text-anchor="middle" fill="#007b79" font-family="serif" font-size="25">R<tspan baseline-shift="sub" font-size="16">i,j″</tspan><tspan baseline-shift="super" font-size="14">(t−1)</tspan></text>
+<text x="900" y="174" text-anchor="middle" fill="#245b8a" font-family="serif" font-size="25">σ<tspan baseline-shift="sub" font-size="16">i′,j</tspan><tspan baseline-shift="super" font-size="14">(t)</tspan></text>
+<text x="900" y="352" text-anchor="middle" fill="#245b8a" font-family="serif" font-size="25">σ<tspan baseline-shift="sub" font-size="16">i″,j</tspan><tspan baseline-shift="super" font-size="14">(t)</tspan></text>
+<text x="550" y="218" text-anchor="middle" fill="#245b8a" font-family="serif" font-size="25">σ<tspan baseline-shift="sub" font-size="16">i,j</tspan><tspan baseline-shift="super" font-size="14">(t)</tspan></text>
+<text x="550" y="309" text-anchor="middle" fill="#007b79" font-family="serif" font-size="25">R<tspan baseline-shift="sub" font-size="16">i,j</tspan><tspan baseline-shift="super" font-size="14">(t)</tspan></text>
+<rect x="288" y="223" width="54" height="54" fill="#edf3f8" stroke="#245b8a" stroke-width="2.5"/><text x="315" y="258" text-anchor="middle" fill="#243b53" font-family="serif" font-size="25">i</text>
+<circle cx="785" cy="250" r="28" fill="#eef8f7" stroke="#007b79" stroke-width="2.5"/><text x="785" y="258" text-anchor="middle" fill="#243b53" font-family="serif" font-size="25">j</text>
+<circle cx="100" cy="140" r="28" fill="#eef8f7" stroke="#007b79" stroke-width="2.5"/><text x="100" y="148" text-anchor="middle" fill="#243b53" font-family="serif" font-size="25">j′</text>
+<circle cx="100" cy="360" r="28" fill="#eef8f7" stroke="#007b79" stroke-width="2.5"/><text x="100" y="368" text-anchor="middle" fill="#243b53" font-family="serif" font-size="25">j″</text>
+<rect x="973" y="113" width="54" height="54" fill="#edf3f8" stroke="#245b8a" stroke-width="2.5"/><text x="1000" y="148" text-anchor="middle" fill="#243b53" font-family="serif" font-size="25">i′</text>
+<rect x="973" y="333" width="54" height="54" fill="#edf3f8" stroke="#245b8a" stroke-width="2.5"/><text x="1000" y="368" text-anchor="middle" fill="#243b53" font-family="serif" font-size="25">i″</text>
+<text x="315" y="422" text-anchor="middle" fill="#526777" font-family="sans-serif" font-size="19">Use the neighbors of i other than j.</text>
+<text x="785" y="422" text-anchor="middle" fill="#526777" font-family="sans-serif" font-size="19">Use the neighbors of j other than i.</text>
+</svg>

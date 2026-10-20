@@ -1,7 +1,8 @@
 package chipsldpc
 
 import chisel3._
-
+// Purely combinational circuit for finding the two smallest incoming magnitudes at a check node, preserving duplicates.
+// This lets the check compute the minimum excluding each recipient using one shared circuit.
 object TwoMinLogic {
   private final case class Candidate(value: UInt, losers: Seq[UInt])
 

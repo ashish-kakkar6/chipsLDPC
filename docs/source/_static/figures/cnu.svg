@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="885" viewBox="0 0 900 885" role="img" aria-labelledby="cnu-title cnu-desc">
+<title id="cnu-title">CNU: shared parity and minima</title>
+<desc id="cnu-desc">For check i, canonical signs feed one shared syndrome-adjusted XOR reduction. XOR with the recipient sign gives the exclusive sign. Magnitudes feed a duplicate-preserving two-minimum tree; both minima are scaled once. A comparison of each input magnitude with the raw first minimum generates its selector. One register stores the shared scaled pair and per-edge sign and selector, enabled by step.fire. An illustrative combinational XOR tree below shows three canonical sign inputs reduced with the stored syndrome.</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#4b6074"/></marker></defs>
+<style>text{font-family:Arial,Helvetica,sans-serif;fill:#16324f;font-size:17px} .small{font-size:15px;fill:#4b6074}.label{font-size:16px;font-weight:600;fill:#235fa4}.heading{font-size:25px;font-weight:700}.box-title{font-size:17px;font-weight:600}.wire{fill:none;stroke:#4b6074;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}</style>
+<rect width="900" height="885" fill="white"/>
+<style>.syndrome{font-size:15px;font-weight:700;fill:#4b6074}</style>
+<text x="30" y="39" text-anchor="start" class="heading">
+<tspan x="30" dy="0">CNU · shared parity and minima</tspan>
+</text>
+<text x="30" y="68" text-anchor="start" class="small">
+<tspan x="30" dy="0">Check i · combinational CheckNode followed by its StaticCheckStage register</tspan>
+</text>
+<path d="M 30 84 H 870" stroke="#d4dfe8"/>
+<text x="30" y="132" text-anchor="start" class="label">
+<tspan x="30" dy="0">Sign path</tspan>
+</text>
+<text x="790" y="127" text-anchor="middle" class="label">
+<tspan x="790" dy="0">Result register</tspan>
+</text>
+<rect x="30" y="170" width="145" height="70" rx="9" fill="#f5f9fd" stroke="#235fa4" stroke-width="1.4"/>
+<text x="102.5" y="198" text-anchor="middle" class="box-title">
+<tspan x="102.5" dy="0">Canonical sign</tspan>
+</text>
+<text x="102.5" y="218" text-anchor="middle" class="small">
+<tspan x="102.5" dy="0">b<tspan baseline-shift="-25%" font-size="75%">j</tspan> = [R<tspan baseline-shift="-25%" font-size="75%">i,j</tspan> &lt; 0]</tspan>
+</text>
+<rect x="235" y="170" width="165" height="70" rx="9" fill="#f5f9fd" stroke="#235fa4" stroke-width="1.4"/>
+<text x="317.5" y="198" text-anchor="middle" class="box-title">
+<tspan x="317.5" dy="0">Shared XOR</tspan>
+</text>
+<text x="317.5" y="218" text-anchor="middle" class="small">
+<tspan x="317.5" dy="0">signs ⊕ syndrome</tspan>
+</text>
+<rect x="470" y="170" width="170" height="70" rx="9" fill="#f5f9fd" stroke="#235fa4" stroke-width="1.4"/>
+<text x="555.0" y="198" text-anchor="middle" class="box-title">
+<tspan x="555.0" dy="0">Exclude edge j</tspan>
+</text>
+<text x="555.0" y="218" text-anchor="middle" class="small">
+<tspan x="555.0" dy="0">s<tspan baseline-shift="-25%" font-size="75%">i,j</tspan> = P<tspan baseline-shift="-25%" font-size="75%">i</tspan> ⊕ b<tspan baseline-shift="-25%" font-size="75%">j</tspan></tspan>
+</text>
+<rect x="725" y="155" width="145" height="345" rx="8" fill="#eaf5f5" stroke="#167d8d" stroke-width="1.7"/>
+<path d="M 725 469 l 10 8 l -10 8" fill="none" stroke="#167d8d" stroke-width="1.7"/>
+<text x="797.5" y="211" text-anchor="middle" class="label">
+<tspan x="797.5" dy="0">s<tspan baseline-shift="-25%" font-size="75%">i,j</tspan></tspan>
+</text>
+<text x="797.5" y="371" text-anchor="middle" class="label">
+<tspan x="797.5" dy="0">m<tspan baseline-shift="-25%" font-size="75%">1,</tspan> m<tspan baseline-shift="-25%" font-size="75%">2</tspan></tspan>
+</text>
+<text x="797.5" y="466" text-anchor="middle" class="label">
+<tspan x="797.5" dy="0">c<tspan baseline-shift="-25%" font-size="75%">i,j</tspan></tspan>
+</text>
+<path class="wire" d="M 175 205 L 235 205" marker-end="url(#arrow)"/>
+<circle cx="200" cy="205" r="3" fill="#4b6074"/>
+<path class="wire" d="M 200 205 L 200 102 L 555 102 L 555 170" marker-end="url(#arrow)"/>
+<text x="435" y="124" text-anchor="middle" class="small">
+<tspan x="435" dy="0">own sign b<tspan baseline-shift="-25%" font-size="75%">j</tspan></tspan>
+</text>
+<text x="317" y="145" text-anchor="middle" class="syndrome">
+<tspan x="317" dy="0">stored syndrome σ<tspan baseline-shift="-25%" font-size="75%">i</tspan></tspan>
+</text>
+<path class="wire" d="M 317 150 L 317 170" marker-end="url(#arrow)"/>
+<path class="wire" d="M 400 205 L 470 205" marker-end="url(#arrow)"/>
+<text x="435" y="194" text-anchor="middle" class="label">
+<tspan x="435" dy="0">P<tspan baseline-shift="-25%" font-size="75%">i</tspan></tspan>
+</text>
+<path class="wire" d="M 640 205 L 725 205" marker-end="url(#arrow)"/>
+<text x="30" y="306" text-anchor="start" class="label">
+<tspan x="30" dy="0">Magnitude path</tspan>
+</text>
+<rect x="30" y="330" width="145" height="70" rx="9" fill="#f5f9fd" stroke="#235fa4" stroke-width="1.4"/>
+<text x="102.5" y="358" text-anchor="middle" class="box-title">
+<tspan x="102.5" dy="0">Magnitudes</tspan>
+</text>
+<text x="102.5" y="378" text-anchor="middle" class="small">
+<tspan x="102.5" dy="0">|R<tspan baseline-shift="-25%" font-size="75%">i,j</tspan>| for all j</tspan>
+</text>
+<rect x="235" y="330" width="165" height="70" rx="9" fill="#f5f9fd" stroke="#235fa4" stroke-width="1.4"/>
+<text x="317.5" y="358" text-anchor="middle" class="box-title">
+<tspan x="317.5" dy="0">Two-min tree</tspan>
+</text>
+<text x="317.5" y="378" text-anchor="middle" class="small">
+<tspan x="317.5" dy="0">raw a<tspan baseline-shift="-25%" font-size="75%">1</tspan> ≤ a<tspan baseline-shift="-25%" font-size="75%">2</tspan></tspan>
+</text>
+<rect x="470" y="330" width="170" height="70" rx="9" fill="#f5f9fd" stroke="#235fa4" stroke-width="1.4"/>
+<text x="555.0" y="358" text-anchor="middle" class="box-title">
+<tspan x="555.0" dy="0">Scale each once</tspan>
+</text>
+<text x="555.0" y="378" text-anchor="middle" class="small">
+<tspan x="555.0" dy="0">m<tspan baseline-shift="-25%" font-size="75%">k</tspan> = g<tspan baseline-shift="-25%" font-size="75%">t</tspan>(a<tspan baseline-shift="-25%" font-size="75%">k</tspan>)</tspan>
+</text>
+<rect x="470" y="430" width="170" height="60" rx="9" fill="#f5f9fd" stroke="#235fa4" stroke-width="1.4"/>
+<text x="555.0" y="458" text-anchor="middle" class="box-title">
+<tspan x="555.0" dy="0">Selector</tspan>
+</text>
+<text x="555.0" y="478" text-anchor="middle" class="small">
+<tspan x="555.0" dy="0">c<tspan baseline-shift="-25%" font-size="75%">i,j</tspan> = [|R<tspan baseline-shift="-25%" font-size="75%">i,j</tspan>| = a<tspan baseline-shift="-25%" font-size="75%">1</tspan>]</tspan>
+</text>
+<path class="wire" d="M 175 365 L 235 365" marker-end="url(#arrow)"/>
+<path class="wire" d="M 400 365 L 470 365" marker-end="url(#arrow)"/>
+<circle cx="420" cy="365" r="3" fill="#4b6074"/>
+<path class="wire" d="M 420 365 L 420 460 L 470 460" marker-end="url(#arrow)"/>
+<text x="413" y="424" text-anchor="end" class="label">
+<tspan x="413" dy="0">a<tspan baseline-shift="-25%" font-size="75%">1</tspan></tspan>
+</text>
+<path class="wire" d="M 640 365 L 725 365" marker-end="url(#arrow)"/>
+<circle cx="195" cy="365" r="3" fill="#4b6074"/>
+<path class="wire" d="M 195 365 L 195 515 L 555 515 L 555 490" marker-end="url(#arrow)"/>
+<text x="355" y="504" text-anchor="middle" class="small">
+<tspan x="355" dy="0">own magnitude |R<tspan baseline-shift="-25%" font-size="75%">i,j</tspan>|</tspan>
+</text>
+<path class="wire" d="M 640 460 L 725 460" marker-end="url(#arrow)"/>
+<text x="797" y="529" text-anchor="middle" class="small">
+<tspan x="797" dy="0">CNU clock edge</tspan>
+<tspan x="797" dy="23">enable: step.fire</tspan>
+</text>
+<text x="30" y="564" text-anchor="start" class="small">
+<tspan x="30" dy="0">Shared pair; one sign and selector per edge.</tspan>
+<tspan x="30" dy="23">Ties stay duplicated: (2, 2, 5) → (2, 2).</tspan>
+</text>
+<path d="M 30 611 H 870" stroke="#d4dfe8"/>
+<text x="30" y="642" text-anchor="start" class="label">
+<tspan x="30" dy="0">Combinational XOR tree</tspan>
+</text>
+<text x="30" y="668" text-anchor="start" class="small">
+<tspan x="30" dy="0">Illustrative degree-three check; gate grouping does not prescribe synthesis.</tspan>
+</text>
+<circle cx="275" cy="720" r="16" fill="white" stroke="#235fa4" stroke-width="1.7"/>
+<text x="275" y="726" text-anchor="middle" class="">
+<tspan x="275" dy="0">⊕</tspan>
+</text>
+<circle cx="455" cy="765" r="16" fill="white" stroke="#235fa4" stroke-width="1.7"/>
+<text x="455" y="771" text-anchor="middle" class="">
+<tspan x="455" dy="0">⊕</tspan>
+</text>
+<circle cx="650" cy="765" r="16" fill="white" stroke="#235fa4" stroke-width="1.7"/>
+<text x="650" y="771" text-anchor="middle" class="">
+<tspan x="650" dy="0">⊕</tspan>
+</text>
+<text x="50" y="700" text-anchor="start" class="small">
+<tspan x="50" dy="0">b<tspan baseline-shift="-25%" font-size="75%">1</tspan></tspan>
+</text>
+<text x="50" y="750" text-anchor="start" class="small">
+<tspan x="50" dy="0">b<tspan baseline-shift="-25%" font-size="75%">2</tspan></tspan>
+</text>
+<text x="50" y="800" text-anchor="start" class="small">
+<tspan x="50" dy="0">b<tspan baseline-shift="-25%" font-size="75%">3</tspan></tspan>
+</text>
+<text x="50" y="850" text-anchor="start" class="syndrome">
+<tspan x="50" dy="0">stored σ<tspan baseline-shift="-25%" font-size="75%">i</tspan></tspan>
+</text>
+<path class="wire" d="M 180 695 L 230 695 L 262 710" marker-end="url(#arrow)"/>
+<path class="wire" d="M 180 745 L 230 745 L 262 730" marker-end="url(#arrow)"/>
+<path class="wire" d="M 291 720 L 380 720 L 442 755" marker-end="url(#arrow)"/>
+<path class="wire" d="M 180 795 L 380 795 L 442 775" marker-end="url(#arrow)"/>
+<path class="wire" d="M 471 765 L 634 765" marker-end="url(#arrow)"/>
+<path class="wire" d="M 180 845 L 650 845 L 650 781" marker-end="url(#arrow)"/>
+<path class="wire" d="M 666 765 L 760 765" marker-end="url(#arrow)"/>
+<text x="778" y="771" text-anchor="start" class="label">
+<tspan x="778" dy="0">P<tspan baseline-shift="-25%" font-size="75%">i</tspan></tspan>
+</text>
+<text x="684" y="807" text-anchor="start" class="small">
+<tspan x="684" dy="0">Shared parity</tspan>
+<tspan x="684" dy="23">for every edge</tspan>
+</text>
+</svg>

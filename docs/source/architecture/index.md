@@ -23,13 +23,15 @@ contain a syndrome, quantized priors, and optional decoder limits.
 | Arithmetic | [`TwoMin.scala`](../../../src/main/scala/chipsldpc/TwoMin.scala), [`CheckNode.scala`](../../../src/main/scala/chipsldpc/CheckNode.scala), [`VariableNode.scala`](../../../src/main/scala/chipsldpc/VariableNode.scala) | Implement fixed-point min-sum updates. |
 | Static network | [`StaticTannerDatapath.scala`](../../../src/main/scala/chipsldpc/StaticTannerDatapath.scala) | Instantiate one CNU per check, one VNU per variable, and fixed edge wiring. |
 | Controllers | [`BpDecoder.scala`](../../../src/main/scala/chipsldpc/BpDecoder.scala), [`RelayBpDecoder.scala`](../../../src/main/scala/chipsldpc/RelayBpDecoder.scala) | Run autonomous vanilla or Relay BP. |
-| Post-processing | `sort/`, `osd/` | Filter soft values and run progressive OSD-0. |
-| Linear algebra | `GaussJordan/` | Provide the binary systolic mesh and framed solver. |
+| Post-processing | [`NeighbourSorter`](../../../src/main/scala/chipsldpc/sort/NeighbourSorter.scala#L48), [`FilteredOsd0`](../../../src/main/scala/chipsldpc/osd/FilteredOsd0.scala#L59) | Filter soft values and run progressive OSD-0. |
+| Linear algebra | [`TrapezoidMesh`](../../../src/main/scala/chipsldpc/GaussJordan/TrapezoidMesh.scala#L34), [`SystolicGf2Solver`](../../../src/main/scala/chipsldpc/GaussJordan/SystolicGf2Solver.scala#L38) | Provide the binary systolic mesh and framed solver. |
 
 The BP network is fully spatial for its elaborated graph. One flooding
 iteration takes one registered check-node clock followed by one registered
 variable-node clock. The decoder accepts one frame at a time; it does not bank
 state or overlap frames.
+[`StaticTannerCore`](../../../src/main/scala/chipsldpc/StaticTannerDatapath.scala#L85)
+defines the phase enables and fixed connections.
 
 ## Interfaces
 
@@ -37,6 +39,9 @@ Top-level controllers use Chisel `Decoupled` input and output channels. A
 producer holds `valid` and payload stable until `ready`; a consumer may apply
 backpressure to result and correction streams. Internal configuration case
 classes are elaboration data and do not create runtime configuration ports.
+For concrete payloads, see [`StaticDecoderInput`](../../../src/main/scala/chipsldpc/StaticTannerDatapath.scala#L7),
+[`BpDecoderResult`](../../../src/main/scala/chipsldpc/BpDecoder.scala#L23),
+and the [OSD stream interfaces](filtered-osd.md).
 
 The implementation emits synthesizable SystemVerilog, but this repository does
 not claim synthesis frequency, area, power, placement, or board execution.

@@ -1,0 +1,14 @@
+{
+  "schema": "chipsldpc.docs.bb144-figures.v1",
+  "manifest_sha256": "09f42510ef876d290d981bff8c80395909dea272aee05b5ee9995b107a2cab0d",
+  "renderer_sha256": "ff2935a89cc4a1cf7fd08b6451d8f93f449b546ce261db78e830d5ec8c73d6cc",
+  "matplotlib": "3.11.1",
+  "figures": {
+    "vanilla-rate.svg": "352d95ac275d134db8c09a1c0c5233eeea3491e5321935b2a59bda9646d379c7",
+    "vanilla-rate.png": "654e5643e26d6079f835e4dfa5cb8742429b240216158be83d342c1d48798027",
+    "relay-rate.svg": "410b09e11f8a1568ce9e4f04ed82318d141c167a4d969955125784838e48c3cf",
+    "relay-rate.png": "7ca6547343e9cede5d0bfbac11da8d85265745d0ede0c17476ff16a6d065da5a",
+    "relay-budget.svg": "4f3c3038d1c86203096fff7da8b963dbc7fd83edc141fe489a6cd0c5af30e3ed",
+    "relay-budget.png": "f46ae07a5ab65cd8258ba2a8322beaa485020bc6addc5f2e5438791e6d6a8b05"
+  }
+}

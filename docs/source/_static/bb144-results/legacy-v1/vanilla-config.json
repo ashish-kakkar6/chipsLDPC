@@ -1,0 +1,14 @@
+{
+  "schema": "chipsldpc.bb144-bp-only.v2",
+  "iterations": 30,
+  "decoder": "early_terminating_min_sum_bp",
+  "correction_stream_abi": 2,
+  "correction_stream": "ascending_sparse_ones",
+  "correction_bank_width": 64,
+  "empty_correction": "zero stream entries; resultValid completes the frame",
+  "cycle_formula": "2*completed_iterations+1+occupied_banks+correction_weight",
+  "message_bits": 4,
+  "soft_bits": 7,
+  "m": 936,
+  "n": 8784
+}

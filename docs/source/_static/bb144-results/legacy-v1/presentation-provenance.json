@@ -1,0 +1,60 @@
+{
+  "slides": [
+    "Vanilla BP: circuit-level benchmark",
+    "RelayBP: error rate and iteration budget"
+  ],
+  "method": "Native editable PGFPlots using saved CSV estimates and confidence intervals; no new simulation.",
+  "vanilla_relay_units": "1 - (1 - word_failure_probability) ** (1 / 12)",
+  "budget_units": "word_failure_probability = failures / shots",
+  "zero_failures": "Downward triangles at the saved upper Wilson 95% confidence limit; not connected to estimates.",
+  "sources": {
+    "vanilla": {
+      "path": "chipsLDPC/build/generated/bb144-bp-only/results/results.csv",
+      "sha256": "b09eeed3adc30aa241e96680df7502c90078e5f01fa9e08207f4fd5114813260",
+      "rows": 7
+    },
+    "relay": {
+      "path": "chipsLDPC/build/generated/bb144-relay-fig7/results/results.csv",
+      "sha256": "3cf54a4fecd1e14c335c7d6cd18fb6aa89dcfe3685cd23c7e5302d08a6a12ca9",
+      "rows": 7
+    },
+    "budget": {
+      "path": "chipsLDPC/build/generated/bb144-relay-budget2/results/budget_sweep.csv",
+      "sha256": "4c19cbaa7da9343103f9d0902fb41e8abef128cfc0556c78f398eeedc03cabba",
+      "rows": 8
+    }
+  },
+  "circuit_model": {
+    "saved_schema": "chipsldpc.bb144.v2",
+    "noisy_rounds": 12,
+    "noiseless_closure_rounds": 2,
+    "sampling": "physical circuit Pauli faults; historical corpus retained",
+    "raw_H_shape": [
+      1008,
+      8856
+    ],
+    "raw_A_shape": [
+      12,
+      8856
+    ],
+    "reduced_H_shape": [
+      936,
+      8784
+    ],
+    "reduced_A_shape": [
+      12,
+      8784
+    ],
+    "exact_singleton_elimination": 72,
+    "sources": [
+      {
+        "path": "chipsLDPC/build/generated/bb144-bp-only/source/sweep.json",
+        "sha256": "582ff2ed062d5e241b721d9d5a007a39d5d596b406e5986bc5b6e5e3fd489f58"
+      },
+      {
+        "path": "chipsLDPC/build/generated/bb144-bp-only/source/z_checks.stim",
+        "sha256": "eda64ae0747bce9d4908df8e7657eb5d6447397d8124a521785aecd0207206f7"
+      }
+    ]
+  }
+}

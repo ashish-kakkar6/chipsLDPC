@@ -12,3 +12,36 @@ code,
 .rst-content code {
   font-size: 0.95em;
 }
+
+/* Distinguish incomplete scientific prose from completed definitions. */
+.rst-content .admonition.author-placeholder {
+  background: #f6f8fc;
+  border-left: 3px solid #6576a5;
+  box-shadow: none;
+}
+.rst-content .author-placeholder .admonition-title {
+  background: #e8edf7;
+  color: #25395b;
+}
+.rst-content figure img {
+  display: block;
+  margin: 1rem auto;
+}
+.rst-content div.math {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: .25rem;
+}
+.rst-content div.math > .eqno {
+  float: right;
+  margin: 1em 0 0 1rem;
+}
+@media (min-width: 1100px) {
+  .wy-nav-content { max-width: 1040px; }
+}
+
+/* Keep repository paths readable on source pages and narrow screens. */
+.rst-content .source-code-title { overflow-wrap: anywhere; }
+.rst-content .highlight .linenos { user-select: none; }
+.rst-content a.source-link code { color: #21658b; }
+.rst-content a.source-link:hover code { text-decoration: underline; }

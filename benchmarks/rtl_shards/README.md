@@ -13,7 +13,7 @@ experiment. A manifest pins every input and simulator artifact by SHA-256.
 ## chipsLDPC example
 
 After producing the BB144 benchmark and Verilated artifact once, split it into
-500-shot jobs:
+100-shot jobs:
 
 ```sh
 python3 benchmarks/rtl_shards/adapters/chipsldpc.py \
@@ -41,8 +41,12 @@ python3 benchmarks/rtl_shards/workflow.py merge \
 Completed shards are checked and skipped. Failed runs cannot replace valid
 CSV because each simulator writes a temporary file that is validated before
 an atomic rename. Merge converts each local shot number to its global number,
-rejects missing or duplicate samples, and preserves every simulator-defined
-result column.
+requires every declared shard's complete local sample range, rejects duplicate
+global sample IDs, and preserves every simulator-defined result column.
+Coverage is relative to the manifest: the merger does not infer an intended
+global shot range or reject gaps between declared shards. The
+[`chipsldpc.plan`](adapters/chipsldpc.py#L26) adapter constructs contiguous ranges
+for the selected samples.
 
 Start at four workers, then measure four, six, and eight on the target machine;
 stop increasing concurrency when aggregate shots/s stops improving or the host
