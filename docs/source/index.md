@@ -69,7 +69,8 @@ The documentation connects the decoding algorithm to their hardware implementati
 
 ## Attribution
 
-`chipsLDPC` is released under the Apache2.0. See [`LICENSE`](../../LICENSE).
+`chipsLDPC` is licensed under the Apache License, Version 2.0.
+See {download}`LICENSE <../../LICENSE>`.
 
 This project is actively being developed.
 

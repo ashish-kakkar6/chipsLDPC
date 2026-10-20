@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "docs/**"
+      - "LICENSE"
       - "requirements-docs.txt"
       - ".github/workflows/docs.yml"
       - "src/main/scala/chipsldpc/**"
@@ -16,6 +17,7 @@ on:
     branches: [main]
     paths:
       - "docs/**"
+      - "LICENSE"
       - "requirements-docs.txt"
       - ".github/workflows/docs.yml"
       - "src/main/scala/chipsldpc/**"

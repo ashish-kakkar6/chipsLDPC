@@ -128,3 +128,9 @@ paper/main.tex             evolving research manuscript
 Generated artifacts and experiment results should remain separate from source.
 An emitted artifact intended for a result should be archived with its generator
 configuration, Git revision, and tool versions.
+
+## License
+
+Copyright 2026 chipsLDPC contributors.
+
+Licensed under the [Apache License, Version 2.0](LICENSE).

@@ -317,24 +317,18 @@ gives the exact scaling schedule and the {ref}`RTL arithmetic contract <bp-exact
 describes how the variable update stores and clips the resulting values.
 :::
 
-[//]: # ()
-[//]: # (## Post-processing)
+<!--
+## Post-processing
 
-[//]: # ()
-[//]: # ([Filtered OSD-0]&#40;architecture/filtered-osd.md&#41; uses final soft values to choose)
+[Filtered OSD-0](architecture/filtered-osd.md) uses final soft values to choose
+a bounded, ordered set of candidate columns. It solves the restricted binary
+system with the [systolic GF(2) solver](architecture/systolic-gf2.md), then
+streams selected correction bits in original variable coordinates.
 
-[//]: # (a bounded, ordered set of candidate columns. It solves the restricted binary)
-
-[//]: # (system with the [systolic GF&#40;2&#41; solver]&#40;architecture/systolic-gf2.md&#41;, then)
-
-[//]: # (streams selected correction bits in original variable coordinates.)
-
-[//]: # ()
-[//]: # (These blocks operate on quantized hardware values. Exact behavior depends on)
-
-[//]: # (the configured widths, scaling, truncation, saturation, graph, and stopping)
-
-[//]: # (limits.)
+These blocks operate on quantized hardware values. Exact behavior depends on
+the configured widths, scaling, truncation, saturation, graph, and stopping
+limits.
+-->
 
 ## References
 
