@@ -16,6 +16,7 @@
 #include <iostream>
 #include <numeric>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #ifdef RELAY_BP_ARTIFACT
@@ -27,29 +28,36 @@ using Dut = VBpFilteredOsd0Artifact;
 #endif
 
 template <typename T> static void clearPort(T &port) {
-  if constexpr (VlIsVlWide<T>::value)
-    for (std::size_t word = 0; word < T::Words; ++word) port.at(word) = 0;
-  else
-    port = 0;
+  static_assert(std::is_integral_v<T>, "expected an integral Verilator port");
+  port = 0;
+}
+
+// Use the VlWide template parameter: older supported Verilator releases do not
+// expose VlIsVlWide or VlWide::Words.
+template <std::size_t Words> static void clearPort(VlWide<Words> &port) {
+  for (std::size_t word = 0; word < Words; ++word) port.at(word) = 0;
 }
 
 template <typename T> static void setBit(T &port, int bit, bool value) {
-  if constexpr (VlIsVlWide<T>::value) {
-    const auto mask = uint32_t{1} << (bit % 32);
-    auto &word = port.at(bit / 32);
-    word = value ? word | mask : word & ~mask;
-  } else {
-    const auto mask = uint64_t{1} << bit;
-    const auto word = static_cast<uint64_t>(port);
-    port = static_cast<T>(value ? word | mask : word & ~mask);
-  }
+  static_assert(std::is_integral_v<T>, "expected an integral Verilator port");
+  const auto mask = uint64_t{1} << bit;
+  const auto word = static_cast<uint64_t>(port);
+  port = static_cast<T>(value ? word | mask : word & ~mask);
+}
+
+template <std::size_t Words> static void setBit(VlWide<Words> &port, int bit, bool value) {
+  const auto mask = uint32_t{1} << (bit % 32);
+  auto &word = port.at(bit / 32);
+  word = value ? word | mask : word & ~mask;
 }
 
 template <typename T> static bool getBit(const T &port, int bit) {
-  if constexpr (VlIsVlWide<T>::value)
-    return (port.at(bit / 32) >> (bit % 32)) & 1U;
-  else
-    return (static_cast<uint64_t>(port) >> bit) & 1U;
+  static_assert(std::is_integral_v<T>, "expected an integral Verilator port");
+  return (static_cast<uint64_t>(port) >> bit) & 1U;
+}
+
+template <std::size_t Words> static bool getBit(const VlWide<Words> &port, int bit) {
+  return (port.at(bit / 32) >> (bit % 32)) & 1U;
 }
 
 template <typename T> static void setField(T &port, int offset, int width, int value) {
