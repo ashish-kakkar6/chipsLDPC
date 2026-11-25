@@ -11,6 +11,6 @@ SystemVerilog generation, and Verilator simulation.
 - [Modify the decoder](https://ashish-kakkar6.github.io/chipsLDPC/change-decoder.html): change parameters, prototype in Python, or edit the RTL implementation.
 
 [Steane BP animation](https://ashish-kakkar6.github.io/chipsLDPC/walkthrough.html) ·
-[QEC decoding slides](https://ashish-kakkar6.github.io/chipsLDPC/decoding-slides.html)
+[QEC decoding presentation](https://ashish-kakkar6.github.io/chipsLDPC/decoding-slides.html)
 
 Licensed under [Apache 2.0](LICENSE).

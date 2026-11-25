@@ -1,13 +1,15 @@
 {
-  "schema": "chipsldpc.learning-assets.v1",
+  "schema": "chipsldpc.learning-assets.v2",
   "animation": {
-    "source_project": "chipsldpc-manim",
-    "source_asset": "media/HardwareWalkthrough.mp4",
-    "captured_at": "2026-10-05T05:01:10.288587+00:00",
-    "source_head": "403a8a591af854f3bf81893f165b50bc46269c97",
-    "semantics": "Quantized min-sum integer reference traces checked against Chisel; no direct internal waveform probes"
+    "provenance": "sum-product-provenance.json",
+    "duration_seconds": 52.4,
+    "semantics": "Sum-product teaching example, independent of the quantized RTL reference fixtures"
   },
-  "slides": {
+  "reference_fixtures": {
+    "provenance": "reference-provenance.json",
+    "scope": "Earlier quantized min-sum and Relay traces replayed by AnimationTraceSpec; not the displayed sum-product animation"
+  },
+  "presentation": {
     "source_file": "ashish-kakkar-talk-VTT.pdf",
     "source_sha256": "da7d6fa03f49ffaf8bddfff9a8047995f14e3b6f70ec57ad5e31121cfed2d652",
     "original_pages": [
@@ -28,19 +30,19 @@
     "selection": "Decoding problem, BP, Relay, hardware implementation, BB144 results"
   },
   "files": {
-    "animation-provenance.json": "c5c135a1e2bbc9cf308d481989beeb954b0546521d2b3419840fc707093046f2",
-    "animation-verification.json": "8adfb4cf3903c26256ded9cc5bfd6abdf00538088d37d48e5f9e778715d072e1",
-    "qec-decoding-vtt.pdf": "85e8807791a329eeead0e22c256dcc0de98b0729174edf5aff20389e19a1ec14",
-    "source-alignment.json": "deff90cd5caf1e87679053f264f897593a4f6acea0c1f74693214333f6d63261",
-    "steane-bp-chapters.json": "5791f9654d59736284eb9acc940e9e61d5292fade45d912e367e4b4fd49989a1",
-    "steane-bp-poster.png": "173d2d856d1b65e5cfb0f62fab6bf9de0c15072de51d5b94a37ca803151503a3",
-    "steane-bp-transcript.txt": "c26f9b722e76480642e12e6496d1d2b025b17e5005fde627ff3816b66ad5911a",
-    "steane-bp.mp4": "622d30939402a214e6e44ea2fc01c7bb02b98bcaceb4f3b0aeaa767b5b4f2dad",
-    "steane-bp.srt": "465afaa372fb6dd763b71db7391b633e6d40cca6e7ea966688f7f60b3e0a3114",
-    "steane-bp.vtt": "1d42a3d16fb61db461094db8dd4588a516614e1f6443effb770ea9c263949bb7",
+    "qec-decoding-presentation.pdf": "c918b70cbed26c91c38a1fc7a62af6575748c567dc55383f2a61128895794903",
+    "reference-provenance.json": "c5c135a1e2bbc9cf308d481989beeb954b0546521d2b3419840fc707093046f2",
+    "reference-source-alignment.json": "deff90cd5caf1e87679053f264f897593a4f6acea0c1f74693214333f6d63261",
+    "steane-bp-poster.png": "77b365a5b05bbeb53c56339b4c02ba287890bc95b6bf37ed1f28fcc575543b19",
+    "steane-bp-transcript.txt": "6f95d4d56b677609e12e9b6d21de95a5466fd4a409fcc415d7e55bb439bd14c0",
+    "steane-bp.mp4": "d252503a2d614d716cb05cdd9f04043b6c7639d3fdd3c78a7fdb8426a9dfbc4c",
+    "steane-bp.vtt": "54cb2782bcc400b978c95e686d4dcd03e79b08e3caa5e3e1f2b16d89fd4d93f8",
     "steane-problem.json": "ff5c5ec59f64142d88608cce456b756d72a2cbc614543e9ff69302449dfda94a",
-    "uniform-problem.json": "16856fafd506249390d99889d6fabac6ac1481f0950d560762b1b22093dd91cd",
     "steane-trace.json": "2f5738ee7969b07eaa9cc264ba4bc38863783e84fe10a6d4a3b01ade637cdb16",
+    "sum-product-model.py": "9af646196fd9e48061cd31cec09aa36e2ea2be565430d18510ad37444ec1c37c",
+    "sum-product-provenance.json": "f59b520f23ed24a3bb5001833a5ceb4160e9364a3d2c0c90baf188211698b33a",
+    "sum-product-scene.py": "eca429ada8f9de287ea3b488e9fb212be71301be89f60d65c92ab99b64350640",
+    "uniform-problem.json": "16856fafd506249390d99889d6fabac6ac1481f0950d560762b1b22093dd91cd",
     "uniform-trace.json": "7e4ac322643f10713ea19c1fb51b7144619a35b501991de816267d8435b66f52"
   }
 }

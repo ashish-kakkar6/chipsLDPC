@@ -40,13 +40,13 @@ python3 docs/learning_assets.py --check
 
 The frozen BB144 bundle retains its original data identity. Add new results under
 another versioned directory. The learning bundle includes the captured Steane
-animation, captions, transcript, full reference traces, teaching fixtures, and a QEC-only PDF excerpt. Its
+sum-product animation, descriptive captions, source snapshot, and QEC presentation excerpt. Its
 manifest records asset hashes, source provenance, and the selected PDF pages.
 See `docs/learning_assets.py --help` for controlled republication from the source
-projects. Preserve the source talk and animation project.
+projects. Preserve the source presentation and animation project.
 
-The animation's eight numerical steps and four final outcomes can be replayed
-against the current integer reference with
+Separate fixtures from the earlier quantized animation retain eight numerical
+steps and four final outcomes. Replay them against the current integer reference with
 `./mill --no-server chipsLDPC.test.testOnly chipsldpc.AnimationTraceSpec`.
 
 Repository-relative source links render as highlighted source pages. Use a

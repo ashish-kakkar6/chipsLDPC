@@ -1,8 +1,8 @@
-# QEC decoding slides
+# QEC decoding presentation
 
-[Open or download the QEC decoding slides](_static/learning/qec-decoding-vtt.pdf).
+[Open or download the QEC decoding presentation](_static/learning/qec-decoding-presentation.pdf).
 
-This 12-page excerpt contains pages 12–23 of Ashish Kakkar's VTT talk. It covers
+This 12-page excerpt contains pages 12–23 of Ashish Kakkar's presentation. It covers
 the decoding problem, BP messages, Relay-BP, the CNU/VNU implementation, and the
 BB144 results. Original page numbers and citations are retained. The source
 presentation is unchanged.

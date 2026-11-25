@@ -25,8 +25,7 @@ decoder status and logical outcomes and checks shot coverage.
 
 Each run retains resolved configuration, source and artifact hashes, tool
 versions, raw rows, and reports. Preserve the whole run directory for a published
-result. The historical BB144 archive and the animation snapshot retain their own
-verification scope and source identity.
+result. The historical BB144 archive retains its own verification scope and source identity.
 
 ## Implementation checks
 
@@ -45,7 +44,7 @@ make -C docs check-assets
 
 | Material | Source or check |
 | --- | --- |
-| Animation's captured numerical steps and final outcomes | [AnimationTraceSpec.scala](../../src/test/scala/chipsldpc/AnimationTraceSpec.scala); integer reference replay, not waveform timing |
+| Captured integer-reference steps and final outcomes | [AnimationTraceSpec.scala](../../src/test/scala/chipsldpc/AnimationTraceSpec.scala); separate min-sum fixtures, not the sum-product teaching animation |
 | Shared core and two-clock updates | [StaticTannerDatapathSpec](../../src/test/scala/chipsldpc/StaticTannerDatapathSpec.scala#L8) |
 | Autonomous controllers, leg transitions, output selection | [BpDecodersSpec](../../src/test/scala/chipsldpc/BpDecodersSpec.scala#L52) |
 | Shared two minima and selector | [TwoMinSpec.scala](../../src/test/scala/chipsldpc/TwoMinSpec.scala), [CheckNodeSpec.scala](../../src/test/scala/chipsldpc/CheckNodeSpec.scala) |
@@ -55,3 +54,13 @@ make -C docs check-assets
 | Syndrome consistency | [ConvergenceCheckerSpec](../../src/test/scala/chipsldpc/ConvergenceCheckerSpec.scala) |
 | Filtered OSD and solver | [FilteredOsd0Spec](../../src/test/scala/chipsldpc/osd/FilteredOsd0Spec.scala), [SystolicGf2SolverSpec](../../src/test/scala/chipsldpc/GaussJordan/SystolicGf2SolverSpec.scala) |
 | Figure regeneration and review | {download}`Contributor instructions <../README.md>` |
+
+## Captured integer fixtures
+
+[AnimationTraceSpec](../../src/test/scala/chipsldpc/AnimationTraceSpec.scala) replays
+eight numerical steps and four final outcomes from earlier quantized min-sum
+and Relay examples. These [Steane](_static/learning/steane-trace.json) and
+[uniform-prior](_static/learning/uniform-trace.json) traces retain their
+[original provenance](_static/learning/reference-provenance.json) and
+[source comparison](_static/learning/reference-source-alignment.json). They are
+independent of the sum-product animation now shown in the documentation.

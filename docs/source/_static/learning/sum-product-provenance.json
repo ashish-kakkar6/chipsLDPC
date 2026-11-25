@@ -1,0 +1,15 @@
+{
+  "source_project": "decoder_manim",
+  "source_directory": "animations/bp_rounds_demo",
+  "source_asset": "media/BPTeachingScene.mp4",
+  "source_sha256": {
+    "bp_decoder.py": "9af646196fd9e48061cd31cec09aa36e2ea2be565430d18510ad37444ec1c37c",
+    "render_scenes.py": "eca429ada8f9de287ea3b488e9fb212be71301be89f60d65c92ab99b64350640"
+  },
+  "video_sha256": "d252503a2d614d716cb05cdd9f04043b6c7639d3fdd3c78a7fdb8426a9dfbc4c",
+  "duration_seconds": 52.4,
+  "source_revision": null,
+  "source_note": "Uncommitted source snapshot; no Git revision was available.",
+  "semantics": "Floating-point sum-product BP; uniform error prior 0.10; three fixed rounds; no Relay or OSD phase.",
+  "caption_note": "Descriptions added for documentation, checked against the rendered phases and scene timing; the video has no audio."
+}

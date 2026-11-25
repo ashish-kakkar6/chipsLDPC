@@ -13,7 +13,7 @@ Reproduce the main results <reproduce-results>
 Use your Stim circuit <custom-circuit>
 Change the decoder <change-decoder>
 Watch BP on the Steane code <walkthrough>
-QEC decoding slides <decoding-slides>
+QEC decoding presentation <decoding-slides>
 Command and configuration reference <cli-reference>
 Model and result reference <experiments/index>
 QEC background <qec-background>
@@ -46,8 +46,8 @@ executed BP iterations. These are archived results.
 
 - [Use your Stim circuit](custom-circuit.md): supply a noisy circuit or a Python circuit factory.
 - [Change the decoder](change-decoder.md): adjust a parameter, compare on shared samples, or prototype a Python decoder.
-- [Watch BP on the Steane code](walkthrough.md): a three-minute animation of message passing and Relay scheduling.
-- [QEC decoding slides](decoding-slides.md): the decoding section of the VTT talk.
+- [Watch BP on the Steane code](walkthrough.md): three illustrative rounds of sum-product message passing.
+- [QEC decoding presentation](decoding-slides.md): BP, Relay-BP, and circuit-level decoding results.
 
 The [model reference](experiments/bb144-model.md) defines the circuit noise,
 observable comparison, and reported units. The [hardware reference](architecture/index.md)
