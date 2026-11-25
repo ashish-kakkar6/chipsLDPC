@@ -16,12 +16,6 @@ The physical process includes both check-extraction circuits; the decoder
 receives the selected Z-check detector sector. This is a single-sector
 experiment, not a combined XZ failure measurement.
 
-:::{admonition} Author text
-:class: author-placeholder
-
-Explain why this code, circuit schedule, and sector are useful for the research
-question. State which conclusions require a joint XZ experiment.
-:::
 
 ## Physical noise and rounds
 
@@ -112,13 +106,6 @@ enforces the reduced graph dimensions.
 The physical circuit's 14 detector groups and the reduced graph's dimensions
 refer to different stages of this preprocessing.
 
-:::{admonition} Author text
-:class: author-placeholder
-
-Explain how circuit-level fault variables change the decoder's graph size and
-connectivity compared with a data-qubit parity-check graph. Discuss any intended
-implications for the hardware architecture.
-:::
 
 ## Priors and decoder inputs
 
@@ -180,11 +167,3 @@ with the same function as the estimate.
 [`budget_report.summarize`](../../../benchmarks/bb144/budget_report.py#L14)
 retains the untransformed word probability and computes the mean executed
 iterations and its $1.96s/\sqrt N$ halfwidth.
-
-:::{admonition} Author text
-:class: author-placeholder
-
-State the scientific question addressed by each rate convention. Explain which
-finite-sample conclusions the figures support and what additional measurements
-would be needed for threshold, latency, or full-code claims.
-:::

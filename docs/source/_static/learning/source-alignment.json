@@ -1,0 +1,181 @@
+{
+  "description": "Source comparison at publication time, not a claim about future checkouts.",
+  "captured_source_head": "403a8a591af854f3bf81893f165b50bc46269c97",
+  "captured_at": "2026-10-05T05:01:10.288587+00:00",
+  "files": [
+    {
+      "path": "build.mill",
+      "captured_sha256": "a1bf597788b50e27331452b1d4ab0851781a640564c788103a5d3e41c1a4959c",
+      "checkout_sha256": "a1bf597788b50e27331452b1d4ab0851781a640564c788103a5d3e41c1a4959c",
+      "status": "match"
+    },
+    {
+      "path": "mill",
+      "captured_sha256": "1d3e2677cefa2c6ae50f5ad2ce9e45db4a66b09241a220e6438a285fd1964ae1",
+      "checkout_sha256": "1d3e2677cefa2c6ae50f5ad2ce9e45db4a66b09241a220e6438a285fd1964ae1",
+      "status": "match"
+    },
+    {
+      "path": ".mill-jvm-opts",
+      "captured_sha256": "831f88c764ec55beb7ded7feae36621cd94ef5adff2f10e8abc27070f555ce45",
+      "checkout_sha256": "831f88c764ec55beb7ded7feae36621cd94ef5adff2f10e8abc27070f555ce45",
+      "status": "match"
+    },
+    {
+      "path": "src/main/scala/chipsldpc/Arithmetic.scala",
+      "captured_sha256": "e3711c2ee8f0d48efb31e6a7c23a4d368f323d4eb4924ab465e6fdba13b874bc",
+      "checkout_sha256": "e3711c2ee8f0d48efb31e6a7c23a4d368f323d4eb4924ab465e6fdba13b874bc",
+      "status": "match"
+    },
+    {
+      "path": "src/main/scala/chipsldpc/BpDecoder.scala",
+      "captured_sha256": "9d8ca743cd1d6946786d68a2997ba9a2e5f3c9687e1d33e17916fd0938fdfe83",
+      "checkout_sha256": "9d8ca743cd1d6946786d68a2997ba9a2e5f3c9687e1d33e17916fd0938fdfe83",
+      "status": "match"
+    },
+    {
+      "path": "src/main/scala/chipsldpc/CheckNode.scala",
+      "captured_sha256": "5f6d709843a870d89c8a97c1ec93476fe338de2b2a4a1af74457328fb7e77216",
+      "checkout_sha256": "5f6d709843a870d89c8a97c1ec93476fe338de2b2a4a1af74457328fb7e77216",
+      "status": "match"
+    },
+    {
+      "path": "src/main/scala/chipsldpc/Config.scala",
+      "captured_sha256": "1bc2f770c4b33e058c6c85bcd6a619535a2f2f3f1cffdf9e9fa8b38c99d78740",
+      "checkout_sha256": "1bc2f770c4b33e058c6c85bcd6a619535a2f2f3f1cffdf9e9fa8b38c99d78740",
+      "status": "match"
+    },
+    {
+      "path": "src/main/scala/chipsldpc/ConvergenceChecker.scala",
+      "captured_sha256": "d0e0fb2356ae6b55b7bb32dc60bb536696e58b6c6ab59d5fa6aae68d93f9b8f4",
+      "checkout_sha256": "d0e0fb2356ae6b55b7bb32dc60bb536696e58b6c6ab59d5fa6aae68d93f9b8f4",
+      "status": "match"
+    },
+    {
+      "path": "src/main/scala/chipsldpc/Generate.scala",
+      "captured_sha256": "d25f6122c4081aa5aedba40b35cc719889e3f8043d11edf695ae220ae8ddd859",
+      "checkout_sha256": "d25f6122c4081aa5aedba40b35cc719889e3f8043d11edf695ae220ae8ddd859",
+      "status": "match"
+    },
+    {
+      "path": "src/main/scala/chipsldpc/Iteration.scala",
+      "captured_sha256": "982c5502e8926d43e267bb9d34ce93a9d222e4021532362118c32ab675083a16",
+      "checkout_sha256": "982c5502e8926d43e267bb9d34ce93a9d222e4021532362118c32ab675083a16",
+      "status": "match"
+    },
+    {
+      "path": "src/main/scala/chipsldpc/Protocol.scala",
+      "captured_sha256": "1250a5a965affeea1bd95e067e6740ac3f643cf25f36212fb30438ebbfbf25b2",
+      "checkout_sha256": "1250a5a965affeea1bd95e067e6740ac3f643cf25f36212fb30438ebbfbf25b2",
+      "status": "match"
+    },
+    {
+      "path": "src/main/scala/chipsldpc/RelayBias.scala",
+      "captured_sha256": "7a63fecc13c51644022ef3272d0375a1ce78869ecf596da931eb675bb4195f53",
+      "checkout_sha256": "7a63fecc13c51644022ef3272d0375a1ce78869ecf596da931eb675bb4195f53",
+      "status": "match"
+    },
+    {
+      "path": "src/main/scala/chipsldpc/RelayBpDecoder.scala",
+      "captured_sha256": "907d7ff73644a50162f0adbd4aa11ccdc28a45faef28270df1f6ea791488b296",
+      "checkout_sha256": "907d7ff73644a50162f0adbd4aa11ccdc28a45faef28270df1f6ea791488b296",
+      "status": "match"
+    },
+    {
+      "path": "src/main/scala/chipsldpc/RelayCoefficients.scala",
+      "captured_sha256": "f6a42ac2a9e797a13883cbd938cbede5a56b39068a1db8ad472f0ee4a883da9e",
+      "checkout_sha256": "f6a42ac2a9e797a13883cbd938cbede5a56b39068a1db8ad472f0ee4a883da9e",
+      "status": "match"
+    },
+    {
+      "path": "src/main/scala/chipsldpc/SparseBitmaskStreamer.scala",
+      "captured_sha256": "d001957c9e536fa34c175dfe8849bd6833c0e1693836725988fd98dca59848d9",
+      "checkout_sha256": "d001957c9e536fa34c175dfe8849bd6833c0e1693836725988fd98dca59848d9",
+      "status": "match"
+    },
+    {
+      "path": "src/main/scala/chipsldpc/StaticTannerDatapath.scala",
+      "captured_sha256": "fbf60bedd61e9440a3d152ced310a9bfde50f7852c191dac3fcdd22d9661ba8d",
+      "checkout_sha256": "fbf60bedd61e9440a3d152ced310a9bfde50f7852c191dac3fcdd22d9661ba8d",
+      "status": "match"
+    },
+    {
+      "path": "src/main/scala/chipsldpc/TwoMin.scala",
+      "captured_sha256": "7639236d279ac1962a053dca3ea050132d4d3b00d0772d4061628f97fb4d54e2",
+      "checkout_sha256": "0975fcfc4e62010151ca1ac00c2b79fccc6927debf29555c583ab874194055d1",
+      "status": "changed"
+    },
+    {
+      "path": "src/main/scala/chipsldpc/VariableNode.scala",
+      "captured_sha256": "2d78ec6cf96a62c43e28216603dad6bdd0e5d9d0f0a0938f12c14d6f0ce30fe7",
+      "checkout_sha256": "2d78ec6cf96a62c43e28216603dad6bdd0e5d9d0f0a0938f12c14d6f0ce30fe7",
+      "status": "match"
+    },
+    {
+      "path": "src/main/scala/chipsldpc/graph/Codes.scala",
+      "captured_sha256": "5322dd983cc2d753641624faafa41f4ffa586ed81ff5d2b596a566b0bb12e76c",
+      "checkout_sha256": "5322dd983cc2d753641624faafa41f4ffa586ed81ff5d2b596a566b0bb12e76c",
+      "status": "match"
+    },
+    {
+      "path": "src/main/scala/chipsldpc/graph/TannerGraph.scala",
+      "captured_sha256": "9a79f8b839758d69fc9136e306f3d8e0480cae9f161786b117833cf25d543249",
+      "checkout_sha256": "9a79f8b839758d69fc9136e306f3d8e0480cae9f161786b117833cf25d543249",
+      "status": "match"
+    },
+    {
+      "path": "src/main/scala/chipsldpc/graph/TannerNodeGraphs.scala",
+      "captured_sha256": "ec11fc683c4a94267f56c357f57adf86079491bcea42759148665431a83961ee",
+      "checkout_sha256": "ec11fc683c4a94267f56c357f57adf86079491bcea42759148665431a83961ee",
+      "status": "match"
+    },
+    {
+      "path": "src/test/scala/chipsldpc/Reference.scala",
+      "captured_sha256": "b8ca26f6367f6760e87b927079c0b4ac3704cee3398a7a0f191d1c3078163086",
+      "checkout_sha256": "b8ca26f6367f6760e87b927079c0b4ac3704cee3398a7a0f191d1c3078163086",
+      "status": "match"
+    },
+    {
+      "path": "src/test/scala/chipsldpc/DocumentationTrace.scala",
+      "captured_sha256": "d62531486ffd5f4911c0a3a751cc6d6b2419603584fbe5cc3627c486d58c6471",
+      "checkout_sha256": null,
+      "status": "missing"
+    },
+    {
+      "path": "src/test/scala/chipsldpc/DocumentationTraceSpec.scala",
+      "captured_sha256": "564fc205e49c65cc4146773cc2f5fc94418a24ae1b44eefa0dd4dc029b2d3310",
+      "checkout_sha256": null,
+      "status": "missing"
+    },
+    {
+      "path": "src/test/scala/chipsldpc/DocumentationDecoderSpec.scala",
+      "captured_sha256": "d7774de46ffdd555029c25c70b87ba3fcb77e1cef1d3dfe33259e8b24fc3e459",
+      "checkout_sha256": null,
+      "status": "missing"
+    },
+    {
+      "path": "src/test/scala/chipsldpc/BpDecodersSpec.scala",
+      "captured_sha256": "657f32d29c577ade24958781f39a8eab9851362ac8436c9a4f45f39cbba8c1a0",
+      "checkout_sha256": "657f32d29c577ade24958781f39a8eab9851362ac8436c9a4f45f39cbba8c1a0",
+      "status": "match"
+    },
+    {
+      "path": "src/test/scala/chipsldpc/RelayBiasSpec.scala",
+      "captured_sha256": "2ed0c062beb1b686bb8320addfd817537b689979aec02ed2bd60ff2ea9d78fc1",
+      "checkout_sha256": "2ed0c062beb1b686bb8320addfd817537b689979aec02ed2bd60ff2ea9d78fc1",
+      "status": "match"
+    },
+    {
+      "path": "src/test/scala/chipsldpc/RelayCoefficientsSpec.scala",
+      "captured_sha256": "56f13ecb01d2879455f8c4f18f34f43be5dee262b50fd47de84a0e8e16b1353c",
+      "checkout_sha256": "56f13ecb01d2879455f8c4f18f34f43be5dee262b50fd47de84a0e8e16b1353c",
+      "status": "match"
+    },
+    {
+      "path": "examples/DecoderWalkthrough/steane.json",
+      "captured_sha256": "ff5c5ec59f64142d88608cce456b756d72a2cbc614543e9ff69302449dfda94a",
+      "checkout_sha256": null,
+      "status": "missing"
+    }
+  ]
+}

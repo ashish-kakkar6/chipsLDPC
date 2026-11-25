@@ -1,0 +1,74 @@
+{
+  "schema": "chipsldpc.walkthrough.v1",
+  "name": "Steane with uniform teaching priors: iteration and leg limits",
+  "n": 7,
+  "row_ones": [
+    [
+      3,
+      4,
+      5,
+      6
+    ],
+    [
+      1,
+      2,
+      5,
+      6
+    ],
+    [
+      0,
+      2,
+      4,
+      6
+    ]
+  ],
+  "prior": [
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4
+  ],
+  "syndrome": [
+    1,
+    0,
+    0
+  ],
+  "logical_ones": [
+    [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ]
+  ],
+  "actual_observables": [
+    1
+  ],
+  "iterations": 4,
+  "relay": {
+    "initial_iterations": 4,
+    "relay_iterations": 3,
+    "maximum_legs": 3,
+    "solution_target": 2,
+    "seed_offset": 0
+  },
+  "source": {
+    "model": "hand-constructed code-capacity example",
+    "injected_error": [
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0
+    ],
+    "prior_note": "Uniform integer teaching priors; not a physical noise-rate estimate."
+  }
+}

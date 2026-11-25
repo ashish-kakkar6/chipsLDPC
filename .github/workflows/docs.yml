@@ -12,6 +12,10 @@ on:
       - "scripts/**"
       - "examples/**"
       - "benchmarks/**"
+      - "python/**"
+      - "experiments/**"
+      - "chipsldpc"
+      - "README.md"
       - "paper/**"
   push:
     branches: [main]
@@ -25,6 +29,10 @@ on:
       - "scripts/**"
       - "examples/**"
       - "benchmarks/**"
+      - "python/**"
+      - "experiments/**"
+      - "chipsldpc"
+      - "README.md"
       - "paper/**"
   workflow_dispatch:
 

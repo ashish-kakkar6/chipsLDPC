@@ -23,6 +23,8 @@ source_suffix = {
 root_doc = "index"
 myst_url_schemes = ["http", "https", "mailto", "ftp", "code"]
 
+myst_heading_anchors = 3
+
 myst_enable_extensions = [
     "colon_fence",
     "dollarmath",

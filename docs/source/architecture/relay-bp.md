@@ -26,14 +26,6 @@ connects the immutable prior, the previous **stored, saturated** marginal, and
 the current coefficient to `RelayBias`. The integer operations below define
 the actual bias; the real-valued equation describes its motivation.
 
-:::{admonition} Author text
-:class: author-placeholder
-
-Introduce why Relay changes the bias while retaining the same CNU/VNU message
-updates. Explain the distinct roles of iteration-to-iteration memory and
-leg-to-leg coefficient changes, using the notation above. Discuss the motivation
-and scope of the method with the original Relay reference.
-:::
 
 ### Exact fixed-point realization
 
@@ -144,14 +136,6 @@ toward the solution target: `candidateWins` uses a strict comparison, while
 `nextSolutions` counts each convergence event. This score selects individual consistent candidates;
 it is not a sum of probabilities over a quantum logical class.
 
-:::{admonition} Author text
-:class: author-placeholder
-
-Walk through a leg boundary: identify what persists, what restarts, and what
-changes. Explain the distinction between requesting several convergence events
-and finding several distinct corrections. Connect the candidate rule to the
-decoding objective without equating syndrome consistency with logical success.
-:::
 
 [`RelayBpDecoder.io.legTrace`](../../../src/main/scala/chipsldpc/RelayBpDecoder.scala#L126)
 emits a nonblocking event at each terminal leg commit. It reports

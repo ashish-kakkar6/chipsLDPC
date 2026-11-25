@@ -1,0 +1,24 @@
+[circuit]
+kind = "builtin"
+name = "surface"
+distance = 3
+rounds = 3
+
+[noise]
+p = 0.003
+
+[sampling]
+shots = 100
+seed = 14412
+
+[decoder]
+kind = "relay"
+initial_iterations = 4
+relay_iterations = 4
+solutions = 2
+budgets = [4, 8, 16]
+
+[run]
+backend = "verilator"
+workers = 2
+compile_jobs = 2

@@ -1,0 +1,20 @@
+[circuit]
+kind = "builtin"
+name = "bb144"
+rounds = 12
+
+[noise]
+probabilities = [0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007]
+
+[sampling]
+shots = 1000
+seed = 14412
+
+[decoder]
+kind = "vanilla"
+iterations = 30
+
+[run]
+backend = "verilator"
+workers = 2
+compile_jobs = 2

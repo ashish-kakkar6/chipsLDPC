@@ -1,0 +1,27 @@
+# Settings of the archived budget figure. This generates a new physical corpus.
+[circuit]
+kind = "builtin"
+name = "bb144"
+rounds = 12
+
+[noise]
+p = 0.003
+
+[sampling]
+shots = 20000
+seed = 14412
+verification_shots = 8
+
+[decoder]
+kind = "relay"
+initial_iterations = 60
+relay_iterations = 60
+solutions = 5
+seed_offset = 0
+budgets = [60, 120, 180, 300, 540, 1020, 2040, 4080]
+
+[run]
+backend = "verilator"
+workers = 2
+compile_jobs = 2
+shard_size = 100

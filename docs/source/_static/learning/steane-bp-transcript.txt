@@ -1,0 +1,29 @@
+Steane BP walkthrough
+
+00:01 A column is a variable. A row is a parity check.
+00:09 Each 1 in H becomes one connection between its variable and check.
+00:14 One edge keeps the same identity in the matrix, Scala port map, and circuit.
+00:20 Scala builds the hardware before decoding. All these units exist together.
+00:27 These integer priors are teaching inputs. Their positive signs favor no error.
+00:34 Load stores the syndrome and priors, then initializes every variable-to-check register.
+00:39 Positive belief: no error. Negative belief: error. Magnitude measures confidence.
+00:46 The CNU finds the smallest two magnitudes, preserving equal minima.
+00:52 For v3, remove v3's contribution. Syndrome 1 makes the outgoing sign negative.
+00:58 Hardware sends a shared min-pair plus sign and useSecond bits to each neighbor.
+01:06 All CNUs compute in parallel. Their results latch on the first iteration clock.
+01:13 The full signed total determines the decision before marginal saturation.
+01:20 An extrinsic message excludes the recipient's evidence, so it is not the marginal.
+01:26 The same rule works at a higher-degree variable. Each neighbor gets its own message.
+01:33 All VNUs commit together on the second clock. One complete BP iteration is finished.
+01:39 We now load uniform priors, so this frame needs more than one iteration.
+01:47 Residual 100: the first check still disagrees. Continue.
+01:55 Residual 000: stop after two iterations, four clocks after accepted load.
+01:59 Output stays valid until accepted. A syndrome match alone does not establish logical success.
+02:06 Relay changes the VNU bias using the previous marginal at every iteration.
+02:11 Leg 0 starts with β = 7/8. Later legs draw deterministic per-variable coefficients.
+02:20 Within leg 0, β stays fixed while the marginal and next iteration's bias change.
+02:27 Leg 0 matches the syndrome. The target is two candidates, so a new leg begins.
+02:33 Keep the new marginals; restart edge messages and the local schedule. No extra clock.
+02:42 Leg 1 finds the same correction. Repeated candidates count toward the target.
+02:48 Three iterations cost six core clocks. The equal-score tie keeps the earlier correction.
+02:54 Same graph, same message-passing phases. Relay adds memory and leg scheduling.

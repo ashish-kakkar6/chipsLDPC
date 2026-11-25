@@ -8,7 +8,7 @@ A decoding problem is specified by:
 - an encoded logical action matrix $A \in \mathbb{F}_2^{K \times N}$
 - a prior error probability vector $p = (p_0, \dots, p_{N-1})$ where error location $j$ is assumed to fail independently with probability $p_j$.
 
-Let $e \in \mathbb{F}_2^N$ denote an unknown error on the physical qubits, and let
+Let $e \in \mathbb{F}_2^N$ denote unknown binary faults in the chosen model, and let
 $\sigma \in \mathbb{F}_2^M$ be the observed syndrome:
 
 ```{math}
@@ -22,28 +22,28 @@ and preserves the equivalence class of the encoded logical operator:
 H \hat{e} = \sigma \qquad \text{and} \qquad A \hat{e} = A e.
 ```
 
-In the examples in this repository, we work with CSS codes and 
-work with split `X/Z` decoding. The syndrome is decomposed into $\sigma_X$ and
-$\sigma_Z$, decoded independently using check matrices $H_X$ and $H_Z$
-to obtain corrections $\hat{e}_X$ and $\hat{e}_Z$. This assumes independent $X$ and $Z$ errors and
-simplifies the decoder interface.
-
+For a CSS code, one can decode the X-error component using Z-check detectors
+and the Z-error component using X-check detectors. The BB144 benchmark measures
+only the Z-check sector. Circuit-level physical errors can correlate the two
+components; evaluating one sector does not establish a combined XZ failure rate.
+In a circuit-level model, columns of $H$ are fault signatures rather than data
+qubits.
 
 From an assumed noise model, it is useful to construct independent binary variable priors $0 < p_j < 1$ defined via $\Pr(e_j=1)=p_j$.
 One can associate to each bit a log-likelihood weight
-$\omega_j = \log \frac{1-p_j}{p_j}$. The decoding problem of interest is to find the bit-wise most-likely error (MLE)
+$\omega_j = \log \frac{1-p_j}{p_j}$. The decoding problem of interest is to find the bit-wise maximum a posteriori (MAP) estimate
 that satisfies the syndrome.
 
-## Bit-wise MLE decoding
+## Bit-wise MAP decoding
 
-The full i.d.d probability distribution from the set of priors is
+The independent-fault prior distribution is
 ```{math}
 :label: eq-bp-prior
 \Pr_{\mathbf p}(\mathbf e)
 =\prod_{j=0}^{N-1}(1-p_j)^{1-e_j} \ p_j^{e_j}.
 ```
 
-The probability of obtaining a candidate error $\mathbf e$, is obtained by conditioning this probability distribution on the measured syndrome 
+The probability of obtaining a candidate error $\mathbf e$, is obtained by conditioning this probability distribution on the measured syndrome
 
 ```{math}
 :label: eq-bp-posterior
@@ -63,7 +63,7 @@ To compute the probability of an error bit-wise using this posterior distributio
 =\sum_{\mathbf e_{\sim j}\in\mathbb F_2^{N-1}}
   \Pr_{\mathbf p}(e_j=b,\mathbf e_{\sim j}\mid\boldsymbol\sigma).
 ```
-To compute the bit-wise MLE, this marginalization needs to be done for all $N$ components of the error, and each probability maximized.
+To compute the bit-wise MAP estimate, this marginalization needs to be done for all $N$ components of the error, and each probability maximized.
 ```{math}
 :label: eq-bp-bit-map
 \hat{\mathbf e}_{\mathrm{bit}}
@@ -75,19 +75,20 @@ To compute the bit-wise MLE, this marginalization needs to be done for all $N$ c
 
 ## BP (Belief Propagation)
 A direct evaluation of a single marginal requires a sum over $2^{N-1}$ assignments.
-An efficient algorithm for marginalization is belief propagation, which is performed on the Tanner graph associated with $H$. The Tanner graph $G=(V,E)$ is a bi-partite graph with the two types of nodes being the variable nodes which index
+An efficient algorithm for marginalization is belief propagation, which is performed on the Tanner graph associated with $H$. The Tanner graph $G=(V,E)$ is a bipartite graph with the two types of nodes being the variable nodes which index
 columns of $H$ and check nodes which index rows of $H$. An edge exists whenever $H_{ij}=1$.
 
-Belief propagation involves iterative message passing between check and variable nodes where each round computes a marginilization of variable nodes based on the previous rounds priors. BP is particularly an important technique for real-time decoding as it lends itself to parallelization. 
-In the maximally parallel (flooding schedule), all the message passing in a single iteration can be performed in just $2$ clock cycles. 
+Belief propagation involves iterative message passing between check and variable nodes where each round computes a marginalization of variable nodes based on the previous rounds priors. BP is particularly an important technique for real-time decoding as it lends itself to parallelization.
+In the maximally parallel (flooding schedule), all the message passing in a single iteration can be performed in just $2$ clock cycles.
 
 ## Local message passing and quantization
 
-A tanner graph exposes the local priors and parity constraints in
+A Tanner graph exposes the local priors and parity constraints in
 {eq}`eq-bp-posterior`, allowing information to pass along edges.
-Min-sum BP computes exact marginals on a tree and is generally approximate
-on a graph with loops [1]. **chipsLDPC implements a scaled, quantized min-sum** with the following conventions for
-the log-likelihood ratio (LLR)
+Sum-product BP computes exact marginals on a tree and is generally approximate
+on a graph with loops [1]. **chipsLDPC implements scaled, quantized min-sum**,
+which approximates the sum-product check update. The log-likelihood ratio (LLR)
+convention is
 
 ```{math}
 :label: eq-bp-llr
@@ -103,8 +104,6 @@ min-sum soft values as integers; hard decisions are computed via
 :label: eq-bp-hard-decision
 \operatorname{HD}(z)=\begin{cases}1,&z<0,\\0,&z\ge0.\end{cases}
 ```
-:::{admonition} Hardware
-:class: author-placeholder
 
 **Prior conversion.** Logarithms are evaluated before the RTL. For each DEM
 probability $0<p_j<1/2$, the BB144 helper
@@ -152,7 +151,6 @@ A larger $c$ gives finer LLR steps but reaches saturation sooner at fixed width;
 different noise priors, graph degrees, Relay memory, or FPGA area/timing budgets
 can therefore justify different scales and widths, checked against decoding
 failure rates and hardware cost.
-:::
 
 
 ```{figure} _static/figures/tanner-neighborhood.svg
@@ -172,7 +170,7 @@ sees check $i$ in $\mathcal N(j)=\{i:H_{ij}=1\}$.
 **$i$ is a check** and **$j$ is a variable**.
 The superscript **$t$ counts completed iterations**: $t=0$ is initialization,
 and the first update has $t=1$. A Tanner graph has a square check node per row of
-$H$, a circular variable node per column. We outline below the quantaties necessary to define the message passing rules on a 
+$H$, a circular variable node per column. We outline below the quantaties necessary to define the message passing rules on a
 Tanner Graph that has been constructed from the parity check matrix coming from a stim Detector Error Model (DEM):
 
 | Symbol                               | Meaning                                                                       | Implementation |
@@ -187,16 +185,11 @@ Tanner Graph that has been constructed from the parity check matrix coming from 
 | $g_t$                                | Scaling factor for check-magnitude                                     | [`Arithmetic.scale`](../../src/main/scala/chipsldpc/Arithmetic.scala#L66), configured by [`CheckScale`](../../src/main/scala/chipsldpc/Config.scala#L20) |
 | $\hat e_j^{(t)}$                     | Hard decision                                     | [`Arithmetic.hardDecision(SInt)`](../../src/main/scala/chipsldpc/Arithmetic.scala#L8), returned as [`VariableResult.decision`](../../src/main/scala/chipsldpc/Protocol.scala#L33) |
 
-:::{admonition} Hardware
-:class: author-placeholder
 The graph and ports are derived by [`TannerGraph.fromRows`](../../src/main/scala/chipsldpc/graph/TannerGraph.scala#L20) and [`TannerNodeGraphs.from`](../../src/main/scala/chipsldpc/graph/TannerNodeGraphs.scala#L45).
 The resulting `TannerNodeGraphs.connections` supplies the check/variable port  map used by [`StaticTannerCore`](../../src/main/scala/chipsldpc/StaticTannerDatapath.scala#L85).
 [`BpDecoderResult`](../../src/main/scala/chipsldpc/BpDecoder.scala#L23) distinguishes the selected `correction` from the final `marginal` (for RelayBP these can belong
 to different legs, see [result semantics](architecture/relay-bp.md)).
-:::
 
-:::{admonition} Author text
-:class: author-placeholder
 
 [`TannerConnection`](../../src/main/scala/chipsldpc/graph/TannerNodeGraphs.scala#L5)
 records these endpoints as `checkId` and `variableId`. Its `checkPort` and
@@ -216,7 +209,6 @@ selects a magnitude and interprets its sign to recover $\sigma_{i,j}$.
 The graph records are ordinary Scala elaboration data: the loop constructs
 fixed Chisel wiring, and successive iterations update the messages over those
 same connections.
-:::
 
 
 (bp-message-rules)=
@@ -275,8 +267,6 @@ describes its rounding and memory carried between legs. Both use the same
 [static BP datapath](architecture/bp-decoder.md).
 Roffe et al. discuss min-sum BP in the quantum LDPC decoding setting [2].
 
-:::{admonition} Author text
-:class: author-placeholder
 
 Consider the check-to-variable arrow $i\to j$ in the figure. At iteration $t$,
 check $i$ uses $R_{i,j'}^{(t-1)}$ and $R_{i,j''}^{(t-1)}$ from the other two
@@ -315,7 +305,6 @@ Replacing these operations with a real-valued scaling followed by one rounding
 step can therefore change the outgoing message. The {ref}`BP architecture <bp-cnu>`
 gives the exact scaling schedule and the {ref}`RTL arithmetic contract <bp-exact-integer>`
 describes how the variable update stores and clips the resulting values.
-:::
 
 <!--
 ## Post-processing

@@ -450,9 +450,23 @@ static int exactMain(const char *goldenPath, const char *resultPath) {
   writeArray(output, correctionOnes);
   output << "\n}\n";
   dut.final();
-  std::cout << "PASS: exact emitted BB144 RTL matched the independent golden; result: "
+  std::cout << "PASS: exact emitted RTL matched the independent golden; result: "
             << resultPath << '\n';
   return 0;
+}
+
+static std::string packObservableBits(const std::vector<int> &bits) {
+  static const char digits[] = "0123456789abcdef";
+  std::string value;
+  for (std::size_t end = (bits.size() + 3) / 4; end > 0; --end) {
+    unsigned nibble = 0;
+    for (std::size_t bit = 0; bit < 4; ++bit) {
+      const auto index = (end - 1) * 4 + bit;
+      if (index < bits.size() && bits[index]) nibble |= 1U << bit;
+    }
+    if (nibble || !value.empty()) value += digits[nibble];
+  }
+  return "0x" + (value.empty() ? std::string("0") : value);
 }
 
 static int benchmarkMain(
@@ -463,7 +477,7 @@ static int benchmarkMain(
   const auto config = readConfig(artifactConfig);
   int m, n, logicalCount, iterations, codeCycles, pCount, magnitudeBits, controlMax;
   if (!(input >> m >> n >> logicalCount >> iterations >> codeCycles >> pCount
-              >> magnitudeBits >> controlMax) || logicalCount <= 0 || logicalCount > 32)
+              >> magnitudeBits >> controlMax) || logicalCount <= 0)
     fail("invalid benchmark header");
   if (m != config.m || n != config.n || magnitudeBits != config.magnitudeBits)
     fail("benchmark and artifact dimensions differ");
@@ -473,8 +487,11 @@ static int benchmarkMain(
   std::vector<std::vector<int>> logicals(logicalCount);
   for (auto &logical : logicals) {
     int degree;
-    input >> degree;
+    if (!(input >> degree) || degree < 0) fail("invalid logical row degree");
     logical = readValues(input, degree, "logical row");
+    if (std::any_of(logical.begin(), logical.end(),
+        [n](int column) { return column < 0 || column >= n; }))
+      fail("logical row contains an out-of-range variable");
   }
   std::ofstream csv(csvPath);
   if (!csv) fail("cannot create benchmark output");
@@ -498,6 +515,9 @@ static int benchmarkMain(
     for (int shot = 0; shot < shots; ++shot) {
       const auto syndrome = readValues(input, m, "benchmark syndrome");
       const auto observedBits = readValues(input, logicalCount, "logical observables");
+      if (std::any_of(observedBits.begin(), observedBits.end(),
+          [](int bit) { return bit != 0 && bit != 1; }))
+        fail("logical observables must be binary");
       const auto frame = decode(
         dut, syndrome, prior, magnitudeBits, config.accumulatorBits,
         runtimeLimit,
@@ -525,15 +545,14 @@ static int benchmarkMain(
       checkRelayTiming(frame, config);
 #endif
 
-      uint32_t predicted = 0, observed = 0;
+      std::vector<int> predicted(logicalCount, 0);
       for (int logical = 0; logical < logicalCount; ++logical) {
         bool parity = false;
         for (int column : logicals[logical]) parity ^= frame.correction[column];
-        predicted |= uint32_t{parity} << logical;
-        observed |= uint32_t{observedBits[logical] != 0} << logical;
+        predicted[logical] = int(parity);
       }
       const bool success = frame.status == 0 || (!bpOnly && frame.status == 1);
-      const bool logicalFailure = !success || predicted != observed;
+      const bool logicalFailure = !success || predicted != observedBits;
       const auto timing = breakdown(
         frame, n, eligible, config.prefixes, config.sparseBankWidth);
       const int weight = std::count(frame.correction.begin(), frame.correction.end(), 1);
@@ -549,8 +568,8 @@ static int benchmarkMain(
           << ',' << timing.dispatch << ',' << timing.bp << ',' << timing.bpOutput
           << ',' << timing.sort << ',' << timing.solverRows << ',' << timing.solverMesh
           << ',' << timing.osdOutput << ',' << timing.osdControl << ',' << eligible
-          << ',' << frame.selected << ',' << frame.activeRows << ',' << weight << ",0x"
-          << std::hex << predicted << ",0x" << observed << std::dec << ','
+          << ',' << frame.selected << ',' << frame.activeRows << ',' << weight << ','
+          << packObservableBits(predicted) << ',' << packObservableBits(observedBits) << ','
           << int(logicalFailure) << '\n';
 
       ++totalShots;
@@ -559,7 +578,7 @@ static int benchmarkMain(
   std::string extra;
   if (input >> extra) fail("extra benchmark data");
   dut.final();
-  std::cout << "PASS: simulated " << totalShots << " BB144 shots; raw results: "
+  std::cout << "PASS: simulated " << totalShots << " shots; raw results: "
             << csvPath << '\n';
   return 0;
 }

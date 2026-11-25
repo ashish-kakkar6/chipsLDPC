@@ -48,13 +48,6 @@ of the indicated node. The [QEC background](../qec-background.md) introduces
 these messages. Here the equations describe the quantized hardware values;
 the links beside them identify their production implementation.
 
-:::{admonition} Author text
-:class: author-placeholder
-
-Explain the transition from the min-sum equations to shared arithmetic. Introduce
-which quantities are reused across all edges and which remain specific to one
-recipient. Relate the two diagrams below to a local Tanner neighborhood.
-:::
 
 (bp-cnu)=
 ### CNU: shared parity and minima
@@ -149,13 +142,6 @@ defines $w_u$; the maintained default is `RampScale(4)`.
 The manual datapath takes $u$ directly from `step.bits`. In particular, $u=0$
 sets both scaled minima to zero; autonomous controllers begin at $u=1$.
 
-:::{admonition} Author text
-:class: author-placeholder
-
-Explain why shared parity and a duplicate-preserving two-minimum tree avoid
-separate reductions for every outgoing edge. Discuss the source-level storage
-and fanout tradeoff without asserting a placed-and-routed area or delay result.
-:::
 
 (bp-vnu)=
 ### VNU: one total, three outputs
@@ -218,14 +204,6 @@ still stores the newly calculated $M_j$ and $\hat e_j$, but stores
 $R_{i,j}=+\lambda_j$ for the next leg instead of the calculated extrinsic message.
 The immutable prior is not reloaded from the external input at that boundary.
 
-:::{admonition} Author text
-:class: author-placeholder
-
-Explain why total-minus-own implements the recipient exclusion in the variable
-update. Relate one incident edge's incoming check message, bias, full total, and
-outgoing message. Explain why subtracting
-from an already saturated marginal would change the result.
-:::
 
 ### Clock and initialization boundaries
 

@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Use the local environment without requiring shell activation.
+set -euo pipefail
+root=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
+if [[ -n ${CHIPSLDPC_PYTHON:-} ]]; then
+  python=$CHIPSLDPC_PYTHON
+elif [[ -x "$root/.venv/bin/python" ]]; then
+  python="$root/.venv/bin/python"
+else
+  python=""
+  for candidate in python3.14 python3.13 python3.12 python3; do
+    if command -v "$candidate" >/dev/null && "$candidate" -c 'import sys; sys.exit(sys.version_info < (3, 12))'; then
+      python=$candidate
+      break
+    fi
+  done
+fi
+if [[ -z "$python" ]] || ! command -v "$python" >/dev/null; then
+  echo 'Python 3.12 or newer is required. Set CHIPSLDPC_PYTHON=/path/to/python3.12.' >&2
+  exit 2
+fi
+if ! "$python" -c 'import sys; sys.exit(sys.version_info < (3, 12))'; then
+  echo 'Python 3.12 or newer is required. Select it with CHIPSLDPC_PYTHON.' >&2
+  exit 2
+fi
+export PYTHONPATH="$root/python${PYTHONPATH:+:$PYTHONPATH}"
+exec "$python" -m chipsldpc "$@"

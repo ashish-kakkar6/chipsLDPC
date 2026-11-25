@@ -90,13 +90,6 @@ The transform is implemented by
 [`report.per_qec_cycle`](../../../benchmarks/bb144/report.py#L59), and the
 interval by [`report.wilson`](../../../benchmarks/bb144/report.py#L50).
 
-:::{admonition} Author text
-:class: author-placeholder
-
-Interpret the vanilla curve. Discuss what the observed behavior suggests about
-this numerical profile and iteration limit, without treating the seven points
-as a threshold estimate.
-:::
 
 ## Relay BP
 
@@ -115,13 +108,6 @@ logical mismatches among converged outputs.
 counts from positive estimates. The archived documentation renderer uses the
 same marker rule in [`publish_bb144.render`](../../figures/publish_bb144.py#L138).
 
-:::{admonition} Author text
-:class: author-placeholder
-
-Compare the complete vanilla and Relay profiles. Separate the measured
-difference from claims about the cause; discuss the differing widths, work
-budgets, stopping rules, and limits of the zero-failure observations.
-:::
 
 (relay-budget-results)=
 ## Relay iteration-budget sweep
@@ -142,13 +128,6 @@ each total cap to a runtime leg count;
 [`checkRelayTiming`](../../../benchmarks/bb144/sim_main.cpp#L283) checks the
 executed leg/iteration counts and two-clock iteration timing.
 
-:::{admonition} Author text
-:class: author-placeholder
-
-Discuss the observed reliability/work tradeoff. Distinguish average executed
-work from worst-case budget, and identify the latency-tail or hardware timing
-measurements needed to extend this result.
-:::
 
 ## Data, provenance, and verification scope
 
@@ -218,8 +197,8 @@ The ordinary documentation build consumes the committed images.
 
 For new simulations, use the [BP-only](bp-only.md), [Relay-BP](relay-bp.md), and
 [iteration-budget](iteration-budget.md) workflows with fresh output directories
-and explicit settings. The run scripts clear their selected output directories;
-keep the historical archives separate. Recorded simulation-only wall times
+and explicit settings. The experiment runner preserves matching runs and rejects
+changed settings in an existing output directory. Recorded simulation-only wall times
 were about four minutes for vanilla, eleven hours for Relay, and 4.1 hours for
 the budget sweep on 16 workers. These are host execution measurements, excluding
 build time; they are not hardware latency or portable runtime estimates.

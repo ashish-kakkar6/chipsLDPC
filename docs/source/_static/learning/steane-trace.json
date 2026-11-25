@@ -1,0 +1,703 @@
+{
+  "schema": "chipsldpc.documentation-trace.v1",
+  "name": "Steane: one X error in the Z-check sector",
+  "trace_kind": "integer software reference; nominal core cycles, not an observed waveform",
+  "source": {
+    "model": "hand-constructed code-capacity example",
+    "injected_error": [
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0
+    ],
+    "prior_note": "Nonuniform teaching priors; this fixture is not a physical noise-rate estimate."
+  },
+  "input": {
+    "prior": [
+      4,
+      4,
+      4,
+      1,
+      4,
+      4,
+      4
+    ],
+    "syndrome": [
+      1,
+      0,
+      0
+    ],
+    "row_ones": [
+      [
+        3,
+        4,
+        5,
+        6
+      ],
+      [
+        1,
+        2,
+        5,
+        6
+      ],
+      [
+        0,
+        2,
+        4,
+        6
+      ]
+    ],
+    "logical_ones": [
+      [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ]
+    ],
+    "actual_observables": [
+      1
+    ]
+  },
+  "graph": {
+    "checks": 3,
+    "variables": 7,
+    "edges": [
+      {
+        "id": 0,
+        "check": 0,
+        "variable": 3,
+        "check_port": 0,
+        "variable_port": 0
+      },
+      {
+        "id": 1,
+        "check": 0,
+        "variable": 4,
+        "check_port": 1,
+        "variable_port": 0
+      },
+      {
+        "id": 2,
+        "check": 0,
+        "variable": 5,
+        "check_port": 2,
+        "variable_port": 0
+      },
+      {
+        "id": 3,
+        "check": 0,
+        "variable": 6,
+        "check_port": 3,
+        "variable_port": 0
+      },
+      {
+        "id": 4,
+        "check": 1,
+        "variable": 1,
+        "check_port": 0,
+        "variable_port": 0
+      },
+      {
+        "id": 5,
+        "check": 1,
+        "variable": 2,
+        "check_port": 1,
+        "variable_port": 0
+      },
+      {
+        "id": 6,
+        "check": 1,
+        "variable": 5,
+        "check_port": 2,
+        "variable_port": 1
+      },
+      {
+        "id": 7,
+        "check": 1,
+        "variable": 6,
+        "check_port": 3,
+        "variable_port": 1
+      },
+      {
+        "id": 8,
+        "check": 2,
+        "variable": 0,
+        "check_port": 0,
+        "variable_port": 0
+      },
+      {
+        "id": 9,
+        "check": 2,
+        "variable": 2,
+        "check_port": 1,
+        "variable_port": 1
+      },
+      {
+        "id": 10,
+        "check": 2,
+        "variable": 4,
+        "check_port": 2,
+        "variable_port": 1
+      },
+      {
+        "id": 11,
+        "check": 2,
+        "variable": 6,
+        "check_port": 3,
+        "variable_port": 2
+      }
+    ]
+  },
+  "decoders": [
+    {
+      "name": "vanilla",
+      "quantization": {
+        "magnitude_bits": 4,
+        "accumulator_bits": 7
+      },
+      "steps": [
+        {
+          "leg": 0,
+          "local_iteration": 1,
+          "total_iteration": 1,
+          "cnu_cycle": 1,
+          "vnu_cycle": 2,
+          "beta_int": null,
+          "bias": [
+            4,
+            4,
+            4,
+            1,
+            4,
+            4,
+            4
+          ],
+          "previous_marginal": [
+            4,
+            4,
+            4,
+            1,
+            4,
+            4,
+            4
+          ],
+          "input_v2c": [
+            1,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4
+          ],
+          "raw_minima": [
+            [
+              1,
+              4
+            ],
+            [
+              4,
+              4
+            ],
+            [
+              4,
+              4
+            ]
+          ],
+          "scaled_minima": [
+            [
+              1,
+              2
+            ],
+            [
+              2,
+              2
+            ],
+            [
+              2,
+              2
+            ]
+          ],
+          "c2v": [
+            -2,
+            -1,
+            -1,
+            -1,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "total": [
+            6,
+            6,
+            8,
+            -1,
+            5,
+            5,
+            7
+          ],
+          "marginal": [
+            6,
+            6,
+            8,
+            -1,
+            5,
+            5,
+            7
+          ],
+          "decision": [
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0
+          ],
+          "residual": [
+            0,
+            0,
+            0
+          ],
+          "computed_v2c": [
+            1,
+            6,
+            6,
+            8,
+            4,
+            6,
+            3,
+            5,
+            4,
+            6,
+            3,
+            5
+          ],
+          "committed_v2c": [
+            1,
+            6,
+            6,
+            8,
+            4,
+            6,
+            3,
+            5,
+            4,
+            6,
+            3,
+            5
+          ],
+          "leg_end": true,
+          "restart_messages": false,
+          "converged": true,
+          "candidate_score": 1,
+          "candidate_wins": true
+        }
+      ],
+      "result": {
+        "success": true,
+        "correction": [
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0
+        ],
+        "marginal": [
+          6,
+          6,
+          8,
+          -1,
+          5,
+          5,
+          7
+        ],
+        "residual": [
+          0,
+          0,
+          0
+        ],
+        "total_iterations": 1,
+        "legs_executed": 1,
+        "solutions_found": 1,
+        "predicted_observables": [
+          1
+        ],
+        "logical_match": true,
+        "logical_success": true
+      }
+    },
+    {
+      "name": "relay",
+      "quantization": {
+        "magnitude_bits": 4,
+        "accumulator_bits": 5
+      },
+      "steps": [
+        {
+          "leg": 0,
+          "local_iteration": 1,
+          "total_iteration": 1,
+          "cnu_cycle": 1,
+          "vnu_cycle": 2,
+          "beta_int": [
+            7,
+            7,
+            7,
+            7,
+            7,
+            7,
+            7
+          ],
+          "bias": [
+            4,
+            4,
+            4,
+            1,
+            4,
+            4,
+            4
+          ],
+          "previous_marginal": [
+            4,
+            4,
+            4,
+            1,
+            4,
+            4,
+            4
+          ],
+          "input_v2c": [
+            1,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4
+          ],
+          "raw_minima": [
+            [
+              1,
+              4
+            ],
+            [
+              4,
+              4
+            ],
+            [
+              4,
+              4
+            ]
+          ],
+          "scaled_minima": [
+            [
+              1,
+              2
+            ],
+            [
+              2,
+              2
+            ],
+            [
+              2,
+              2
+            ]
+          ],
+          "c2v": [
+            -2,
+            -1,
+            -1,
+            -1,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "total": [
+            6,
+            6,
+            8,
+            -1,
+            5,
+            5,
+            7
+          ],
+          "marginal": [
+            6,
+            6,
+            8,
+            -1,
+            5,
+            5,
+            7
+          ],
+          "decision": [
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0
+          ],
+          "residual": [
+            0,
+            0,
+            0
+          ],
+          "computed_v2c": [
+            1,
+            6,
+            6,
+            8,
+            4,
+            6,
+            3,
+            5,
+            4,
+            6,
+            3,
+            5
+          ],
+          "committed_v2c": [
+            1,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4
+          ],
+          "leg_end": true,
+          "restart_messages": true,
+          "converged": true,
+          "candidate_score": 1,
+          "candidate_wins": true
+        },
+        {
+          "leg": 1,
+          "local_iteration": 1,
+          "total_iteration": 2,
+          "cnu_cycle": 3,
+          "vnu_cycle": 4,
+          "beta_int": [
+            3,
+            3,
+            4,
+            4,
+            4,
+            4,
+            5
+          ],
+          "bias": [
+            6,
+            6,
+            6,
+            -1,
+            5,
+            5,
+            6
+          ],
+          "previous_marginal": [
+            6,
+            6,
+            8,
+            -1,
+            5,
+            5,
+            7
+          ],
+          "input_v2c": [
+            1,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4,
+            4
+          ],
+          "raw_minima": [
+            [
+              1,
+              4
+            ],
+            [
+              4,
+              4
+            ],
+            [
+              4,
+              4
+            ]
+          ],
+          "scaled_minima": [
+            [
+              1,
+              2
+            ],
+            [
+              2,
+              2
+            ],
+            [
+              2,
+              2
+            ]
+          ],
+          "c2v": [
+            -2,
+            -1,
+            -1,
+            -1,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2,
+            2
+          ],
+          "total": [
+            8,
+            8,
+            10,
+            -3,
+            6,
+            6,
+            9
+          ],
+          "marginal": [
+            8,
+            8,
+            10,
+            -3,
+            6,
+            6,
+            9
+          ],
+          "decision": [
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0
+          ],
+          "residual": [
+            0,
+            0,
+            0
+          ],
+          "computed_v2c": [
+            -1,
+            7,
+            7,
+            10,
+            6,
+            8,
+            4,
+            7,
+            6,
+            8,
+            4,
+            7
+          ],
+          "committed_v2c": [
+            -1,
+            7,
+            7,
+            10,
+            6,
+            8,
+            4,
+            7,
+            6,
+            8,
+            4,
+            7
+          ],
+          "leg_end": true,
+          "restart_messages": false,
+          "converged": true,
+          "candidate_score": 1,
+          "candidate_wins": false
+        }
+      ],
+      "result": {
+        "success": true,
+        "correction": [
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0
+        ],
+        "marginal": [
+          8,
+          8,
+          10,
+          -3,
+          6,
+          6,
+          9
+        ],
+        "residual": [
+          0,
+          0,
+          0
+        ],
+        "total_iterations": 2,
+        "legs_executed": 2,
+        "solutions_found": 2,
+        "predicted_observables": [
+          1
+        ],
+        "logical_match": true,
+        "logical_success": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+# Paths in a recipe are relative to this file.
+[circuit]
+kind = "factory"
+path = "circuits.py"
+function = "make_circuit"
+rounds = 3
+
+[noise]
+p = 0.003
+
+[sampling]
+shots = 100
+seed = 14412
+
+[decoder]
+kind = "vanilla"
+budgets = [1, 4, 16]
+
+[run]
+backend = "verilator"
+workers = 2
+compile_jobs = 2

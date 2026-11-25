@@ -15,12 +15,18 @@ Emit and lint an inspectable hardware target:
   StaticTannerDatapath
 ```
 
-BB144 runs verify prepared fixtures against the Scala golden models before
-each sweep. The [experiment workflows](experiments/index.md) link the wrapper,
-producer, and reporting code for each profile.
+The experiment runner compares prepared frames with the independent Scala
+integer reference at every requested stopping budget before the bulk RTL run.
+`sampling.verification_shots` sets the fixture count (default 8 per probability).
+Distinct sampled frames are used first; synthetic single-fault fixtures fill
+remaining slots and never enter the failure statistics. This is separate from
+an all-shot software comparison. The bulk report recomputes failure from saved
+decoder status and logical outcomes and checks shot coverage.
 
-Archive published results with the emitted configuration, Git revision, tool
-versions, raw rows, and generated reports.
+Each run retains resolved configuration, source and artifact hashes, tool
+versions, raw rows, and reports. Preserve the whole run directory for a published
+result. The historical BB144 archive and the animation snapshot retain their own
+verification scope and source identity.
 
 ## Implementation checks
 
@@ -39,6 +45,7 @@ make -C docs check-assets
 
 | Material | Source or check |
 | --- | --- |
+| Animation's captured numerical steps and final outcomes | [AnimationTraceSpec.scala](../../src/test/scala/chipsldpc/AnimationTraceSpec.scala); integer reference replay, not waveform timing |
 | Shared core and two-clock updates | [StaticTannerDatapathSpec](../../src/test/scala/chipsldpc/StaticTannerDatapathSpec.scala#L8) |
 | Autonomous controllers, leg transitions, output selection | [BpDecodersSpec](../../src/test/scala/chipsldpc/BpDecodersSpec.scala#L52) |
 | Shared two minima and selector | [TwoMinSpec.scala](../../src/test/scala/chipsldpc/TwoMinSpec.scala), [CheckNodeSpec.scala](../../src/test/scala/chipsldpc/CheckNodeSpec.scala) |

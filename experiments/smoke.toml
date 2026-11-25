@@ -1,0 +1,23 @@
+# A small circuit-level experiment that compiles and runs the actual RTL.
+[circuit]
+kind = "builtin"
+name = "repetition"
+distance = 3
+rounds = 3
+
+[noise]
+p = 0.003
+
+[sampling]
+shots = 100
+seed = 14412
+verification_shots = 8
+
+[decoder]
+kind = "vanilla"
+budgets = [1, 4, 16]
+
+[run]
+backend = "verilator"
+workers = 2
+compile_jobs = 2

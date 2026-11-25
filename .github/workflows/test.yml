@@ -28,3 +28,49 @@ jobs:
           verilator --version
       - name: Test
         run: ./mill chipsLDPC.test
+
+  scientist-workflow:
+    name: Documented experiment workflow
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: benchmarks/bb144/requirements.txt
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: coursier/cache-action@v6
+      - name: Install native tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y verilator build-essential
+      - name: Set up as documented
+        run: ./chipsldpc setup
+      - name: Python scientific and workflow tests
+        run: |
+          .venv/bin/python -m unittest discover -s tests -v
+          .venv/bin/python -m unittest discover -s benchmarks/rtl_shards -p 'test_*.py' -v
+          ./chipsldpc results check
+      - name: Run documented RTL examples
+        run: |
+          ./chipsldpc run experiments/smoke.toml --out runs/smoke
+          ./chipsldpc run experiments/smoke.toml --out runs/smoke --workers 1
+          ./chipsldpc run experiments/surface-smoke.toml --out runs/surface-smoke
+          ./chipsldpc run experiments/custom-circuit.toml --out runs/custom-circuit
+      - name: Compare prototype on saved samples and replot
+        run: |
+          ./chipsldpc run experiments/python-baseline.toml --samples runs/smoke/source --out runs/python-baseline
+          ./chipsldpc run experiments/decoder-variant.toml --samples runs/smoke/source --out runs/decoder-variant
+          ./chipsldpc plot runs/smoke
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: experiment-results
+          path: |
+            runs/*/results/
+            runs/*/logs/
+            runs/*/run.json

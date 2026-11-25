@@ -16,6 +16,7 @@ check-assets:
 	$(PYTHON) figures/build_tanner.py --check
 	$(PYTHON) figures/build_architecture.py --check
 	$(PYTHON) figures/publish_bb144.py --check
+	$(PYTHON) learning_assets.py --check
 
 html: check-assets
 	$(SPHINXBUILD) -n -b html -W --keep-going $(SOURCEDIR) $(BUILDDIR)/html

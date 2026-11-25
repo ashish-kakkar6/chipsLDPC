@@ -1,0 +1,22 @@
+# Same circuit/samples as smoke.toml, with a floating-point experimental rule.
+[circuit]
+kind = "builtin"
+name = "repetition"
+distance = 3
+rounds = 3
+
+[noise]
+p = 0.003
+
+[sampling]
+shots = 100
+seed = 14412
+
+[decoder]
+kind = "python"
+path = "decoders.py"
+function = "decode"
+budgets = [1, 4, 16]
+
+[run]
+backend = "python"

@@ -13,16 +13,6 @@ code,
   font-size: 0.95em;
 }
 
-/* Distinguish incomplete scientific prose from completed definitions. */
-.rst-content .admonition.author-placeholder {
-  background: #f6f8fc;
-  border-left: 3px solid #6576a5;
-  box-shadow: none;
-}
-.rst-content .author-placeholder .admonition-title {
-  background: #e8edf7;
-  color: #25395b;
-}
 .rst-content figure img {
   display: block;
   margin: 1rem auto;
@@ -45,3 +35,5 @@ code,
 .rst-content .highlight .linenos { user-select: none; }
 .rst-content a.source-link code { color: #21658b; }
 .rst-content a.source-link:hover code { text-decoration: underline; }
+
+.rst-content video { width: 100%; height: auto; margin: 1rem 0; }

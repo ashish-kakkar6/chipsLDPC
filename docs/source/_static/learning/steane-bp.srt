@@ -1,0 +1,107 @@
+1
+00:00:01,200 --> 00:00:09,567
+A column is a variable. A row is a parity check.
+
+2
+00:00:09,567 --> 00:00:14,033
+Each 1 in H becomes one connection between its variable and check.
+
+3
+00:00:14,033 --> 00:00:20,200
+One edge keeps the same identity in the matrix, Scala port map, and circuit.
+
+4
+00:00:20,200 --> 00:00:25,567
+Scala builds the hardware before decoding. All these units exist together.
+
+5
+00:00:27,767 --> 00:00:34,533
+These integer priors are teaching inputs. Their positive signs favor no error.
+
+6
+00:00:34,533 --> 00:00:39,900
+Load stores the syndrome and priors, then initializes every variable-to-check register.
+
+7
+00:00:39,900 --> 00:00:44,267
+Positive belief: no error. Negative belief: error. Magnitude measures confidence.
+
+8
+00:00:46,667 --> 00:00:52,333
+The CNU finds the smallest two magnitudes, preserving equal minima.
+
+9
+00:00:52,333 --> 00:00:58,400
+For v3, remove v3's contribution. Syndrome 1 makes the outgoing sign negative.
+
+10
+00:00:58,400 --> 00:01:06,167
+Hardware sends a shared min-pair plus sign and useSecond bits to each neighbor.
+
+11
+00:01:06,167 --> 00:01:10,533
+All CNUs compute in parallel. Their results latch on the first iteration clock.
+
+12
+00:01:13,833 --> 00:01:20,700
+The full signed total determines the decision before marginal saturation.
+
+13
+00:01:20,700 --> 00:01:26,867
+An extrinsic message excludes the recipient's evidence, so it is not the marginal.
+
+14
+00:01:26,867 --> 00:01:33,433
+The same rule works at a higher-degree variable. Each neighbor gets its own message.
+
+15
+00:01:33,433 --> 00:01:37,800
+All VNUs commit together on the second clock. One complete BP iteration is finished.
+
+16
+00:01:39,800 --> 00:01:47,733
+We now load uniform priors, so this frame needs more than one iteration.
+
+17
+00:01:47,733 --> 00:01:55,167
+Residual 100: the first check still disagrees. Continue.
+
+18
+00:01:55,167 --> 00:01:59,533
+Residual 000: stop after two iterations, four clocks after accepted load.
+
+19
+00:01:59,533 --> 00:02:04,400
+Output stays valid until accepted. A syndrome match alone does not establish logical success.
+
+20
+00:02:06,900 --> 00:02:11,767
+Relay changes the VNU bias using the previous marginal at every iteration.
+
+21
+00:02:11,767 --> 00:02:20,033
+Leg 0 starts with β = 7/8. Later legs draw deterministic per-variable coefficients.
+
+22
+00:02:20,033 --> 00:02:27,800
+Within leg 0, β stays fixed while the marginal and next iteration's bias change.
+
+23
+00:02:27,800 --> 00:02:33,367
+Leg 0 matches the syndrome. The target is two candidates, so a new leg begins.
+
+24
+00:02:33,367 --> 00:02:42,533
+Keep the new marginals; restart edge messages and the local schedule. No extra clock.
+
+25
+00:02:42,533 --> 00:02:48,100
+Leg 1 finds the same correction. Repeated candidates count toward the target.
+
+26
+00:02:48,100 --> 00:02:54,567
+Three iterations cost six core clocks. The equal-score tie keeps the earlier correction.
+
+27
+00:02:54,567 --> 00:02:59,933
+Same graph, same message-passing phases. Relay adds memory and leg scheduling.

@@ -1,0 +1,46 @@
+{
+  "schema": "chipsldpc.learning-assets.v1",
+  "animation": {
+    "source_project": "chipsldpc-manim",
+    "source_asset": "media/HardwareWalkthrough.mp4",
+    "captured_at": "2026-10-05T05:01:10.288587+00:00",
+    "source_head": "403a8a591af854f3bf81893f165b50bc46269c97",
+    "semantics": "Quantized min-sum integer reference traces checked against Chisel; no direct internal waveform probes"
+  },
+  "slides": {
+    "source_file": "ashish-kakkar-talk-VTT.pdf",
+    "source_sha256": "da7d6fa03f49ffaf8bddfff9a8047995f14e3b6f70ec57ad5e31121cfed2d652",
+    "original_pages": [
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23
+    ],
+    "pages": 12,
+    "selection": "Decoding problem, BP, Relay, hardware implementation, BB144 results"
+  },
+  "files": {
+    "animation-provenance.json": "c5c135a1e2bbc9cf308d481989beeb954b0546521d2b3419840fc707093046f2",
+    "animation-verification.json": "8adfb4cf3903c26256ded9cc5bfd6abdf00538088d37d48e5f9e778715d072e1",
+    "qec-decoding-vtt.pdf": "85e8807791a329eeead0e22c256dcc0de98b0729174edf5aff20389e19a1ec14",
+    "source-alignment.json": "deff90cd5caf1e87679053f264f897593a4f6acea0c1f74693214333f6d63261",
+    "steane-bp-chapters.json": "5791f9654d59736284eb9acc940e9e61d5292fade45d912e367e4b4fd49989a1",
+    "steane-bp-poster.png": "173d2d856d1b65e5cfb0f62fab6bf9de0c15072de51d5b94a37ca803151503a3",
+    "steane-bp-transcript.txt": "c26f9b722e76480642e12e6496d1d2b025b17e5005fde627ff3816b66ad5911a",
+    "steane-bp.mp4": "622d30939402a214e6e44ea2fc01c7bb02b98bcaceb4f3b0aeaa767b5b4f2dad",
+    "steane-bp.srt": "465afaa372fb6dd763b71db7391b633e6d40cca6e7ea966688f7f60b3e0a3114",
+    "steane-bp.vtt": "1d42a3d16fb61db461094db8dd4588a516614e1f6443effb770ea9c263949bb7",
+    "steane-problem.json": "ff5c5ec59f64142d88608cce456b756d72a2cbc614543e9ff69302449dfda94a",
+    "uniform-problem.json": "16856fafd506249390d99889d6fabac6ac1481f0950d560762b1b22093dd91cd",
+    "steane-trace.json": "2f5738ee7969b07eaa9cc264ba4bc38863783e84fe10a6d4a3b01ade637cdb16",
+    "uniform-trace.json": "7e4ac322643f10713ea19c1fb51b7144619a35b501991de816267d8435b66f52"
+  }
+}

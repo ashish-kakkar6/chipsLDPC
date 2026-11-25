@@ -1,0 +1,173 @@
+{
+  "duration": 179.9333333333253,
+  "chapters": [
+    {
+      "number": 1,
+      "title": "A parity check becomes a circuit",
+      "start": 0
+    },
+    {
+      "number": 2,
+      "title": "Load beliefs into the fixed graph",
+      "start": 26.166666666666835
+    },
+    {
+      "number": 3,
+      "title": "CNU: ask the other neighbors",
+      "start": 44.86666666666628
+    },
+    {
+      "number": 4,
+      "title": "VNU: combine, decide, subtract",
+      "start": 71.13333333333146
+    },
+    {
+      "number": 5,
+      "title": "Vanilla BP: repeat until the checks agree",
+      "start": 98.39999999999658
+    },
+    {
+      "number": 6,
+      "title": "Relay BP: retain memory, restart messages",
+      "start": 124.99999999999507
+    }
+  ],
+  "captions": [
+    {
+      "start": 1.2000000000000002,
+      "text": "A column is a variable. A row is a parity check.",
+      "end": 9.566666666666642
+    },
+    {
+      "start": 9.566666666666642,
+      "text": "Each 1 in H becomes one connection between its variable and check.",
+      "end": 14.033333333333292
+    },
+    {
+      "start": 14.033333333333292,
+      "text": "One edge keeps the same identity in the matrix, Scala port map, and circuit.",
+      "end": 20.200000000000056
+    },
+    {
+      "start": 20.200000000000056,
+      "text": "Scala builds the hardware before decoding. All these units exist together.",
+      "end": 25.566666666666805
+    },
+    {
+      "start": 27.766666666666914,
+      "text": "These integer priors are teaching inputs. Their positive signs favor no error.",
+      "end": 34.53333333333354
+    },
+    {
+      "start": 34.53333333333354,
+      "text": "Load stores the syndrome and priors, then initializes every variable-to-check register.",
+      "end": 39.8999999999999
+    },
+    {
+      "start": 39.8999999999999,
+      "text": "Positive belief: no error. Negative belief: error. Magnitude measures confidence.",
+      "end": 44.26666666666632
+    },
+    {
+      "start": 46.66666666666618,
+      "text": "The CNU finds the smallest two magnitudes, preserving equal minima.",
+      "end": 52.333333333332526
+    },
+    {
+      "start": 52.333333333332526,
+      "text": "For v3, remove v3's contribution. Syndrome 1 makes the outgoing sign negative.",
+      "end": 58.39999999999885
+    },
+    {
+      "start": 58.39999999999885,
+      "text": "Hardware sends a shared min-pair plus sign and useSecond bits to each neighbor.",
+      "end": 66.16666666666508
+    },
+    {
+      "start": 66.16666666666508,
+      "text": "All CNUs compute in parallel. Their results latch on the first iteration clock.",
+      "end": 70.5333333333315
+    },
+    {
+      "start": 73.83333333333131,
+      "text": "The full signed total determines the decision before marginal saturation.",
+      "end": 80.69999999999759
+    },
+    {
+      "start": 80.69999999999759,
+      "text": "An extrinsic message excludes the recipient's evidence, so it is not the marginal.",
+      "end": 86.8666666666639
+    },
+    {
+      "start": 86.8666666666639,
+      "text": "The same rule works at a higher-degree variable. Each neighbor gets its own message.",
+      "end": 93.4333333333302
+    },
+    {
+      "start": 93.4333333333302,
+      "text": "All VNUs commit together on the second clock. One complete BP iteration is finished.",
+      "end": 97.79999999999661
+    },
+    {
+      "start": 99.7999999999965,
+      "text": "We now load uniform priors, so this frame needs more than one iteration.",
+      "end": 107.73333333332938
+    },
+    {
+      "start": 107.73333333332938,
+      "text": "Residual 100: the first check still disagrees. Continue.",
+      "end": 115.1666666666623
+    },
+    {
+      "start": 115.1666666666623,
+      "text": "Residual 000: stop after two iterations, four clocks after accepted load.",
+      "end": 119.53333333332871
+    },
+    {
+      "start": 119.53333333332871,
+      "text": "Output stays valid until accepted. A syndrome match alone does not establish logical success.",
+      "end": 124.3999999999951
+    },
+    {
+      "start": 126.89999999999496,
+      "text": "Relay changes the VNU bias using the previous marginal at every iteration.",
+      "end": 131.76666666666137
+    },
+    {
+      "start": 131.76666666666137,
+      "text": "Leg 0 starts with \u03b2 = 7/8. Later legs draw deterministic per-variable coefficients.",
+      "end": 140.03333333332756
+    },
+    {
+      "start": 140.03333333332756,
+      "text": "Within leg 0, \u03b2 stays fixed while the marginal and next iteration's bias change.",
+      "end": 147.7999999999938
+    },
+    {
+      "start": 147.7999999999938,
+      "text": "Leg 0 matches the syndrome. The target is two candidates, so a new leg begins.",
+      "end": 153.36666666666014
+    },
+    {
+      "start": 153.36666666666014,
+      "text": "Keep the new marginals; restart edge messages and the local schedule. No extra clock.",
+      "end": 162.53333333332628
+    },
+    {
+      "start": 162.53333333332628,
+      "text": "Leg 1 finds the same correction. Repeated candidates count toward the target.",
+      "end": 168.09999999999263
+    },
+    {
+      "start": 168.09999999999263,
+      "text": "Three iterations cost six core clocks. The equal-score tie keeps the earlier correction.",
+      "end": 174.56666666665893
+    },
+    {
+      "start": 174.56666666665893,
+      "text": "Same graph, same message-passing phases. Relay adds memory and leg scheduling.",
+      "end": 179.9333333333253
+    }
+  ],
+  "source_head": "403a8a591af854f3bf81893f165b50bc46269c97"
+}
